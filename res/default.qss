@@ -10,3 +10,8 @@ QPushButton {
 QPushButton:hover {
     background-color: #101010;
 }
+
+
+HiddenButton {
+    background-color: #333333;
+}
