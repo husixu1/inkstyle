@@ -1,8 +1,8 @@
 #ifndef PANEL_H
 #define PANEL_H
 
-#include "button.h"
-#include "hiddenbutton.h"
+#include "button.hpp"
+#include "hiddenbutton.hpp"
 
 #include <QPushButton>
 #include <QSharedPointer>

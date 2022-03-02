@@ -15,9 +15,9 @@ SOURCES += \
     src/panel.cpp
 
 HEADERS += \
-    src/button.h \
-    src/hiddenbutton.h \
-    src/panel.h
+    src/button.hpp \
+    src/hiddenbutton.hpp \
+    src/panel.hpp
 
 FORMS +=
 
@@ -28,3 +28,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     res.qrc
+
+DISTFILES += \
+    resource.qss

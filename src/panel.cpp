@@ -1,4 +1,4 @@
-#include "panel.h"
+#include "panel.hpp"
 
 #include <QApplication>
 #include <QClipboard>
@@ -123,7 +123,7 @@ Panel::Panel(Panel *parent, quint8 tSlot)
     for (quint8 i = 0; i < 6; ++i) {
         if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i))) {
             HiddenButton *borderButton = addBorderButton(i);
-            connect(borderButton, &HiddenButton::mouseEnter, this, [=]() {
+            connect(borderButton, &HiddenButton::mouseEnter, this, [this, i]() {
                 Panel::addPanel(i);
             });
         }

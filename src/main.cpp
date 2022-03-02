@@ -1,9 +1,10 @@
-#include "panel.h"
+#include "panel.hpp"
 
 #include <QApplication>
 #include <QFile>
 
 int main(int argc, char *argv[]) {
+
     QApplication a(argc, argv);
 
     // Set app style

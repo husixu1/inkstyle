@@ -1,4 +1,4 @@
-#include "hiddenbutton.h"
+#include "hiddenbutton.hpp"
 
 HiddenButton::HiddenButton(QWidget *parent) : QPushButton(parent) {}
 

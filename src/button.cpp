@@ -1,4 +1,4 @@
-#include "button.h"
+#include "button.hpp"
 
 #include <QMouseEvent>
 #include <QResizeEvent>
@@ -19,6 +19,7 @@ Button::Button(QRect geometry, QRegion mask, qreal hoverScale, QWidget *parent)
 }
 
 void Button::enterEvent(QEvent *e) {
+
     hovering = true;
     startAnimation();
     update();
