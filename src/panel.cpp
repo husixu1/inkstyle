@@ -84,7 +84,7 @@ Panel::Panel(Panel *parent, quint8 tSlot)
     : QWidget(nullptr),
       coordinate(parent ? parent->calcRelativeCoordinate(tSlot) : QPoint{0, 0}),
       parentPanel(parent), tSlot(tSlot), childPanels(6, nullptr),
-      borderButtons(6, nullptr), hoverScale(1.2), unitLen(200), gapLen(2) {
+      borderButtons(6, nullptr), hoverScale(1.3), unitLen(200), gapLen(2) {
 
     // Set common window attributes
     setPalette(QPalette(QPalette::Window, Qt::transparent));
@@ -96,16 +96,6 @@ Panel::Panel(Panel *parent, quint8 tSlot)
     // Add panel to grid
     panelGrid[coordinate] = this;
 
-    // Draw panel
-    redraw();
-}
-
-Panel::~Panel() {
-    // unregister this from panelGrid
-    panelGrid.remove(coordinate);
-}
-
-void Panel::redraw() {
     // Set window location and size to be the bounding box of the hexagon
     setFixedSize(
         int(unitLen * (2 + 2 / 3.)), unitLen * qSin(R60) * (2 + 2 / 3.));
@@ -142,6 +132,11 @@ void Panel::redraw() {
     updateMask();
 }
 
+Panel::~Panel() {
+    // unregister this from panelGrid
+    panelGrid.remove(coordinate);
+}
+
 void Panel::updateMask() {
     // Generate the center hexagon
     QPolygon polygon;
@@ -149,9 +144,13 @@ void Panel::updateMask() {
     for (size_t i = 0; i < 6; ++i) {
         points.append(
             {int(size().width() / 2.
-                 + unitLen * qCos(R60 * i) * (1. + (hoverScale - 1.) / 3.)),
-             int(size().height() / 2.
-                 + unitLen * qSin(R60 * i) * (1. + (hoverScale - 1.) / 3.))});
+                 + qCos(R60 * i)
+                       * (unitLen * (1. + (hoverScale - 1.) / 6.)
+                          /*- gapLen * (hoverScale - 1.) * qCos(R60)*/)),
+             int(size().height() / 2
+                 + qSin(R60 * i)
+                       * (unitLen * (1. + (hoverScale - 1.) / 6.)
+                          /* gapLen * (hoverScale - 1.) * qCos(R60)*/))});
     }
     polygon.setPoints(6, points.data());
     QRegion mask(polygon);
@@ -359,6 +358,45 @@ void Panel::closeEvent(QCloseEvent *) {
         parentPanel->close();
 }
 
+void Panel::paintEvent(QPaintEvent *event) {
+    QPainter painter(this);
+    painter.setRenderHints(
+        QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
+    painter.setPen(QPen(Qt::white, 3, Qt::SolidLine, Qt::RoundCap));
+    QPointF center(geometry().width() / 2, geometry().height() / 2);
+
+    if (!parentPanel) {
+        // For root panel, divide to 6 fans
+        QVector<QLineF> lines;
+        for (quint8 i = 0; i < 6; ++i)
+            lines.append({
+                center
+                    + QPointF(
+                        qCos(i * R60) * unitLen / 3.,
+                        -qSin(i * R60) * unitLen / 3.),
+                center
+                    + QPointF(
+                        qCos(i * R60) * unitLen, -qSin(i * R60) * unitLen),
+            });
+        painter.drawLines(lines);
+    } else {
+        // For child panes, draw on borders
+        QVector<QLineF> lines;
+        for (quint8 i = 0; i < 6; ++i)
+            if (!((i + 3) % 6 == tSlot || childPanels[i]))
+                lines.append({
+                    center
+                        + QPointF(
+                            qCos(i * R60) * unitLen, -qSin(i * R60) * unitLen),
+                    center
+                        + QPointF(
+                            qCos((i + 1) * R60) * unitLen,
+                            -qSin((i + 1) * R60) * unitLen),
+                });
+        painter.drawLines(lines);
+    }
+}
+
 void Panel::addPanel(quint8 tSlot) {
     assert(0 <= tSlot && tSlot <= 5);
 
@@ -388,6 +426,9 @@ void Panel::addPanel(quint8 tSlot) {
             panelGrid[neighborCoordinate]->updateMask();
         }
     }
+
+    // Update guides
+    update();
 }
 
 void Panel::delPanel(quint8 tSlot) {

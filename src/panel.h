@@ -60,7 +60,7 @@ private:
     /// @note The generated point coordinates are relative to this panel
     QVector<QPoint> genBorderButtonMask(quint8 tSlot);
 
-    /// @brief update masked area
+    /// @brief Update masked area
     void updateMask();
 
 public:
@@ -71,8 +71,6 @@ public:
     qint32 unitLen;
     /// @brief gap/2 between buttons
     qint32 gapLen;
-
-    void redraw();
 
     /// @brief Add buttons that applies style to inkscape objects
     /// @param tSlot Theta(angle)-slot, 0~5
@@ -107,7 +105,8 @@ protected:
     void moveEvent(QMoveEvent *event) override;
     /// @brief Overridden to recursively close all panels
     void closeEvent(QCloseEvent *event) override;
-
+    /// @brief Overridden to update visual guides
+    void paintEvent(QPaintEvent *event) override;
 private slots:
     void addPanel(quint8 tSlot);
     void delPanel(quint8 tSlot);
