@@ -468,6 +468,7 @@ void Panel::delPanel(quint8 tSlot) {
 
 void Panel::copyStyle(quint16 slot) {
     if (config->buttons.contains(slot)) {
+        // Copy style associated with slot to clipboard
         QMimeData *styleSvg = new QMimeData;
         styleSvg->setData(
             C::SC::styleMimeType, config->buttons[slot].styleSvg.toUtf8());

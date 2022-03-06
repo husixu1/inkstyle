@@ -1,5 +1,6 @@
 #include "configmanager.hpp"
 #include "panel.hpp"
+#include "utils.hpp"
 
 #include <QApplication>
 #include <QFile>
@@ -35,6 +36,7 @@ int main(int argc, char *argv[]) try {
         if (panel)
             panel->close();
         panel = nullptr;
+        Utils::pasteToInkscape();
     });
 
     return a.exec();
