@@ -102,8 +102,10 @@ Panel::Panel(Panel *parent, quint8 tSlot)
 
     if (parentPanel)
         move(parentPanel->calcRelativePanelPos(tSlot));
-    else
-        move(QCursor::pos() - QPoint(unitLen, int(unitLen * qSin(R60))));
+    else {
+        QPoint center(geometry().width() / 2, geometry().height() / 2);
+        move(QCursor::pos() - center);
+    }
 
     // Add style buttons
     Button *button;
