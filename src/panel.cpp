@@ -5,6 +5,7 @@
 #include <QCursor>
 #include <QFile>
 #include <QMoveEvent>
+#include <QPaintEngine>
 #include <QPainter>
 #include <QPalette>
 #include <QPolygon>
@@ -18,13 +19,14 @@
 static constexpr double R30 = 30. * M_PI / 180.;
 static constexpr double R60 = 60. * M_PI / 180.;
 
-Panel::Panel(Panel *parent)
-    : QWidget(nullptr), parentPanel(parent), childPanel(nullptr), unitLen(200),
+Panel::Panel(Panel *parent, quint8 tSlot)
+    : QWidget(nullptr), parentPanel(parent), tSlot(tSlot),
+      childPanels(6, nullptr), borderButtons(6, nullptr), unitLen(200),
       gapLen(2) {
     // setPalette(QPalette(QPalette::Window, Qt::transparent));
-    // setAttribute(Qt::WA_TranslucentBackground);
-    setWindowFlags(Qt::X11BypassWindowManagerHint);
-    setAttribute(Qt::WA_X11NetWmWindowTypePopupMenu);
+    setAttribute(Qt::WA_TranslucentBackground);
+    // setWindowFlags(Qt::X11BypassWindowManagerHint);
+    // setAttribute(Qt::WA_X11NetWmWindowTypePopupMenu);
     setWindowFlags(Qt::FramelessWindowHint);
     redrawMainWindow();
 }
@@ -32,15 +34,16 @@ Panel::Panel(Panel *parent)
 void Panel::redrawMainWindow() {
     // Set window location and size to be the bounding box of the hexagon
     QPoint cursorPos = QCursor::pos();
-    if (parentPanel)
+    if (parentPanel) {
         position = parentPanel->position
                    + QPoint(
-                       int(unitLen * qSqrt(3) * qCos(R30)),
-                       int(unitLen * qSqrt(3) * qSin(R30)));
-    else
+                       int(unitLen * qSqrt(3) * qCos(R30 + R60 * tSlot)),
+                       int(-unitLen * qSqrt(3) * qSin(R30 + R60 * tSlot)));
+    } else
         position = cursorPos - QPoint(unitLen, int(unitLen * qSin(R60)));
 
-    setFixedSize(unitLen * 2, unitLen * qSin(R60) * 2);
+    setFixedSize(
+        int(unitLen * (2 + 2 / 3.)), unitLen * qSin(R60) * (2 + 2 / 3.));
     move(position);
 
     // Generate a hexagon
@@ -48,8 +51,8 @@ void Panel::redrawMainWindow() {
     QVector<int> points;
     for (size_t i = 0; i < 6; ++i) {
         points.append(
-            {static_cast<int>(unitLen + unitLen * qCos(R60 * i)),
-             static_cast<int>(unitLen * qSin(R60) + unitLen * qSin(R60 * i))});
+            {int(size().width() / 2. + unitLen * qCos(R60 * i) * 4. / 3.),
+             int(size().height() / 2. + unitLen * qSin(R60 * i) * 4. / 3.)});
     }
     polygon.setPoints(6, points.data());
 
@@ -57,28 +60,30 @@ void Panel::redrawMainWindow() {
     setMask(QRegion(polygon));
 
     // Add style buttons
-    QPushButton *button;
+    Button *button;
     for (quint8 i = 0; i < 6; ++i) {
         for (quint8 j = 0; j < 2; ++j) {
             for (quint8 k = 0; k < (j + 1) * 2 + 1; ++k) {
                 button = addStyleButton(i, j + 1, k);
-                connect(button, SIGNAL(clicked()), this, SLOT(copyStyle()));
+                connect(button, &QPushButton::clicked, this, &Panel::copyStyle);
             }
         }
     }
 
-    // Add style buttons
+    // Add border buttons, skip the occupied edge
     for (quint8 i = 0; i < 6; ++i) {
-        button = addBorderButton(i);
-        connect(button, SIGNAL(mouseEnter()), this, SLOT(addPanel()));
+        if (!parentPanel || (abs(i - tSlot) != 3)) {
+            HiddenButton *borderButton = addBorderButton(i);
+            connect(borderButton, &HiddenButton::mouseEnter, this, [=]() {
+                Panel::addPanel(i);
+            });
+        }
     }
 
     // Connect button slots
 }
 
 Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
-    Button *button = new Button(this);
-
     assert(tSlot <= 5);
     assert(1 <= rSlot && rSlot <= 2);
     assert(subSlot <= rSlot * 2);
@@ -104,14 +109,14 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     QVector<QPoint> points = {
         {
             // The 1st point
-            int(unitLen
+            int(size().width() / 2.
                 // Base x
                 + ((rSlot * qCos(tSlot * R60)
                     + (subSlot / 2) * qCos((tSlot + 2) * R60))
                        * unitLen / 3.
                    // Offset for border
                    + gapLen * qCos((tSlot + 0.5 + (subSlot % 2)) * R60))),
-            int(unitLen * qSin(R60)
+            int(size().height() / 2.
                 // Base y
                 - ((rSlot * qSin(tSlot * R60)
                     + (subSlot / 2) * qSin((tSlot + 2) * R60))
@@ -121,12 +126,12 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         },
         {
             // The 2nd point
-            int(unitLen
+            int(size().width() / 2.
                 + (((rSlot + 1 - (subSlot % 2)) * qCos(tSlot * R60)
                     + ((subSlot + 1) / 2) * qCos((tSlot + 2) * R60))
                        * unitLen / 3.
                    + gapLen * qCos((tSlot + 2.5 - (subSlot % 2) * 3) * R60))),
-            int(unitLen * qSin(R60)
+            int(size().height() / 2.
                 - (((rSlot + 1 - (subSlot % 2)) * qSin(tSlot * R60)
                     + ((subSlot + 1) / 2) * qSin((tSlot + 2) * R60))
                        * unitLen / 3.
@@ -134,12 +139,12 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         },
         {
             // The 3rd point
-            int(unitLen
+            int(size().width() / 2.
                 + (((rSlot + 1) * qCos(tSlot * R60)
                     + (subSlot / 2 + 1) * qCos((tSlot + 2) * R60))
                        * unitLen / 3.
                    + gapLen * qCos((tSlot - 1.5 - (subSlot % 2)) * R60))),
-            int(unitLen * qSin(R60)
+            int(size().height() / 2.
                 - (((rSlot + 1) * qSin(tSlot * R60)
                     + (subSlot / 2 + 1) * qSin((tSlot + 2) * R60))
                        * unitLen / 3.
@@ -154,9 +159,13 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     int maxX = *std::max_element(xs.begin(), xs.end());
     int maxY = *std::max_element(ys.begin(), ys.end());
 
-    button->setGeometry(minX, minY, maxX - minX, maxY - minY);
-    button->setFixedSize(maxX - minX, maxY - minY);
-    // button->setText("T");
+    QPolygon mask;
+    mask.setPoints(
+        3, points[0].x() - minX, points[0].y() - minY, points[1].x() - minX,
+        points[1].y() - minY, points[2].x() - minX, points[2].y() - minY);
+
+    Button *button =
+        new Button(QRect(minX, minY, maxX - minX, maxY - minY), mask, this);
 
     // TEST: Draw an icon
     QSize iconSize(
@@ -166,6 +175,8 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     QPixmap pixmap(iconSize);
     pixmap.fill(Qt::transparent);
     QPainter painter(&pixmap);
+    painter.setRenderHints(
+        QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
     painter.setPen(Qt::white);
 
     // Translate and rotate are dependent. I.e. the coordinate system used
@@ -190,43 +201,38 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
 
     painter.drawRect(
         iconSize.width() / 2. - 5, iconSize.height() - 10 - 1, 10, 10);
-
     button->setIcon(pixmap);
     button->setIconSize(iconSize);
-
-    QPolygon polygon;
-    polygon.setPoints(
-        3, points[0].x() - minX, points[0].y() - minY, points[1].x() - minX,
-        points[1].y() - minY, points[2].x() - minX, points[2].y() - minY);
-
-    // Set mask
-    button->setMask(QRegion(polygon));
 
     return button;
 }
 
-Button *Panel::addBorderButton(quint8 tSlot) {
-    Button *button = new Button(this);
+HiddenButton *Panel::addBorderButton(quint8 tSlot) {
     assert(tSlot <= 5);
+
+    if (borderButtons[tSlot])
+        return nullptr;
 
     // vertex of the trapezoidal button
     QVector<QPoint> points = {
         {
-            int(unitLen + qCos(tSlot * R60) * unitLen),
-            int(unitLen * qSin(R60) - (qSin(tSlot * R60) * unitLen)),
+            int(size().width() / 2. + qCos(tSlot * R60) * unitLen),
+            int(size().height() / 2. - (qSin(tSlot * R60) * unitLen)),
         },
         {
-            int(unitLen + qCos((tSlot + 1) * R60) * unitLen),
-            int(unitLen * qSin(R60) - (qSin((tSlot + 1) * R60) * unitLen)),
+            int(size().width() / 2. + qCos((tSlot + 1) * R60) * unitLen),
+            int(size().height() / 2. - (qSin((tSlot + 1) * R60) * unitLen)),
         },
         {
-            int(unitLen + qCos((tSlot + 1) * R60) * (unitLen - gapLen)),
-            int(unitLen * qSin(R60)
-                - ((qSin((tSlot + 1) * R60)) * (unitLen - gapLen))),
+            int(size().width() / 2.
+                + qCos((tSlot + 1) * R60) * (4. / 3.) * unitLen),
+            int(size().height() / 2.
+                - ((qSin((tSlot + 1) * R60)) * (4. / 3.) * unitLen)),
         },
         {
-            int(unitLen + qCos(tSlot * R60) * (unitLen - gapLen)),
-            int(unitLen * qSin(R60) - (qSin(tSlot * R60) * (unitLen - gapLen))),
+            int(size().width() / 2. + qCos(tSlot * R60) * (4. / 3.) * unitLen),
+            int(size().height() / 2.
+                - (qSin(tSlot * R60) * (4. / 3.) * unitLen)),
         }};
 
     QVector<int> xs = {
@@ -239,8 +245,6 @@ Button *Panel::addBorderButton(quint8 tSlot) {
     int maxX = *std::max_element(xs.begin(), xs.end());
     int maxY = *std::max_element(ys.begin(), ys.end());
 
-    button->setGeometry(minX, minY, maxX - minX, maxY - minY);
-    button->setFixedSize(maxX - minX, maxY - minY);
     // button->setText("");
 
     QPolygon polygon;
@@ -248,27 +252,53 @@ Button *Panel::addBorderButton(quint8 tSlot) {
         4, points[0].x() - minX, points[0].y() - minY, points[1].x() - minX,
         points[1].y() - minY, points[2].x() - minX, points[2].y() - minY,
         points[3].x() - minX, points[3].y() - minY);
+    QRegion mask(polygon);
 
-    // Set mask
-    button->setMask(QRegion(polygon));
+    // Using delayed delete is necessary since it is possible that the deletion
+    // is triggered during the button's own event
+    borderButtons[tSlot] = QSharedPointer<HiddenButton>(
+        new HiddenButton(this), [](HiddenButton *b) { b->deleteLater(); });
+    borderButtons[tSlot]->setGeometry(
+        QRect(minX, minY, maxX - minX, maxY - minY));
+    borderButtons[tSlot]->setMask(mask);
 
-    return button;
+    return borderButtons[tSlot].data();
+}
+
+void Panel::delBorderButton(quint8 tSlot) {
+    borderButtons[tSlot] = nullptr;
 }
 
 void Panel::moveEvent(QMoveEvent *event) {
     this->position = event->pos();
-    if (this->childPanel)
-        childPanel->move(childPanel->position + event->pos() - event->oldPos());
+    for (auto &panel : childPanels)
+        if (panel)
+            panel->move(panel->position + event->pos() - event->oldPos());
 }
 
-void Panel::addPanel() {
-    if (!childPanel) {
+void Panel::closeEvent(QCloseEvent *event) {
+    // close all child panels first
+    for (auto &panel : childPanels)
+        panel = nullptr;
+}
+
+void Panel::addPanel(quint8 tSlot) {
+    assert(0 <= tSlot && tSlot <= 5);
+    delBorderButton(tSlot);
+    if (!childPanels[tSlot]) {
         std::cout << "add panel" << std::endl;
-        childPanel = QSharedPointer<Panel>(
-            new Panel(this), [](Panel *panel) { panel->close(); });
-        childPanel->show();
-        childPanel->move(childPanel->position);
+        childPanels[tSlot] = QSharedPointer<Panel>(
+            new Panel(this, tSlot), [](Panel *panel) { panel->close(); });
+        childPanels[tSlot]->show();
+        childPanels[tSlot]->move(childPanels[tSlot]->position);
     }
+}
+
+void Panel::delPanel(quint8 tSlot) {
+    assert(0 <= tSlot && tSlot <= 5);
+    if (!childPanels[tSlot])
+        return;
+    childPanels[tSlot] = nullptr;
 }
 
 void Panel::copyStyle() {

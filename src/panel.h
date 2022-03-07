@@ -1,24 +1,31 @@
 #ifndef PANEL_H
-#define PANEL_H
+#    define PANEL_H
 
-#include "button.h"
+#    include "button.h"
+#    include "hiddenbutton.h"
 
-#include <QPushButton>
-#include <QSharedPointer>
-#include <QStack>
-#include <QWidget>
+#    include <QPushButton>
+#    include <QSharedPointer>
+#    include <QStack>
+#    include <QVector>
+#    include <QWeakPointer>
+#    include <QWidget>
 
 class Panel : public QWidget {
     Q_OBJECT
 private:
     Panel *parentPanel;
-    QSharedPointer<Panel> childPanel;
+    /// @brief The rslot of the parent panel in which this panel resides
+    quint8 tSlot;
+    QVector<QSharedPointer<Panel>> childPanels;
+
+    QVector<QSharedPointer<HiddenButton>> borderButtons;
 
     // Absolute screen position
     QPoint position;
 
 public:
-    Panel(Panel *parent = nullptr);
+    Panel(Panel *parent = nullptr, quint8 tSlot = 0);
 
     /// @brief Radius of the main hexagon (edge length)
     qint32 unitLen;
@@ -51,12 +58,16 @@ public:
 
     /// @brief Add button that fills border of the hexagon
     /// @param tSlot theta(angle)-slot, range from 0-5
-    Button *addBorderButton(quint8 tSlot);
+    HiddenButton *addBorderButton(quint8 tSlot);
+    void delBorderButton(quint8 tSlot);
 
+protected:
     void moveEvent(QMoveEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
-    void addPanel();
+    void addPanel(quint8 tSlot);
+    void delPanel(quint8 tSlot);
     void copyStyle();
 };
 #endif // PANEL_H
