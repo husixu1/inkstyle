@@ -2,10 +2,10 @@
 
 HiddenButton::HiddenButton(QWidget *parent) : QPushButton(parent) {}
 
-void HiddenButton::enterEvent(QEvent *e) {
+void HiddenButton::enterEvent(QEvent *) {
     emit mouseEnter();
 }
 
-void HiddenButton::leaveEvent(QEvent *e) {
+void HiddenButton::leaveEvent(QEvent *) {
     emit mouseLeave();
 }

@@ -12,9 +12,9 @@
 #include <QPushButton>
 #include <QRegion>
 #include <QVector>
+#include <QtDebug>
 #include <QtMath>
 #include <algorithm>
-#include <iostream>
 
 static constexpr double R30 = 30. * M_PI / 180.;
 static constexpr double R60 = 60. * M_PI / 180.;
@@ -358,7 +358,7 @@ void Panel::closeEvent(QCloseEvent *) {
         parentPanel->close();
 }
 
-void Panel::paintEvent(QPaintEvent *event) {
+void Panel::paintEvent(QPaintEvent *) {
     QPainter painter(this);
     painter.setRenderHints(
         QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
@@ -409,7 +409,7 @@ void Panel::addPanel(quint8 tSlot) {
     // Update mask of this
     updateMask();
 
-    std::cout << "add panel" << std::endl;
+    qDebug() << "Add panel";
     QSharedPointer<Panel> panel(
         new Panel(this, tSlot), [](Panel *panel) { panel->close(); });
     childPanels[tSlot] = panel;
@@ -440,5 +440,5 @@ void Panel::delPanel(quint8 tSlot) {
 
 void Panel::copyStyle() {
     QApplication::clipboard()->setText("some text");
-    std::cout << "Text copied" << std::endl;
+    qDebug() << "Style copied";
 }

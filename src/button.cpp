@@ -18,7 +18,7 @@ Button::Button(QRect geometry, QRegion mask, qreal hoverScale, QWidget *parent)
     animation.setStartValue(geometry);
 }
 
-void Button::enterEvent(QEvent *e) {
+void Button::enterEvent(QEvent *) {
 
     hovering = true;
     startAnimation();
@@ -26,14 +26,14 @@ void Button::enterEvent(QEvent *e) {
     emit mouseEnter();
 }
 
-void Button::leaveEvent(QEvent *e) {
+void Button::leaveEvent(QEvent *) {
     hovering = false;
     startAnimation();
     update();
     emit mouseLeave();
 }
 
-void Button::mouseMoveEvent(QMouseEvent *e) {
+void Button::mouseMoveEvent(QMouseEvent *) {
     // std::cout << this << ": " << e->pos().x() << ", " << e->pos().y()
     //           << std::endl;
     // repaint();
