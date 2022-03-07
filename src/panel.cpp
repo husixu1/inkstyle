@@ -26,7 +26,7 @@ uint qHash(const QPoint &point, uint seed = 0) {
 }
 
 QPoint Panel::calcRelativeCoordinate(quint8 tSlot) {
-    assert(0 <= tSlot && tSlot <= 5);
+    assert(tSlot <= 5);
     switch (tSlot) {
     case 0:
         return coordinate + QPoint{1, 0};
@@ -412,8 +412,10 @@ void Panel::addPanel(quint8 tSlot) {
     updateMask();
 
     qDebug() << "Add panel";
-    QSharedPointer<Panel> panel(
-        new Panel(this, tSlot), [](Panel *panel) { panel->close(); });
+    QSharedPointer<Panel> panel(new Panel(this, tSlot), [](Panel *panel) {
+        panel->close();
+        panel->deleteLater();
+    });
     childPanels[tSlot] = panel;
     panel->show();
     panel->move(childPanels[tSlot]->pos());
@@ -434,7 +436,7 @@ void Panel::addPanel(quint8 tSlot) {
 }
 
 void Panel::delPanel(quint8 tSlot) {
-    assert(0 <= tSlot && tSlot <= 5);
+    assert(tSlot <= 5);
     if (!childPanels[tSlot])
         return;
     childPanels[tSlot] = nullptr;
