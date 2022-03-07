@@ -1,10 +1,11 @@
 #include "panel.h"
 
-#include "button.h"
-
+#include <QApplication>
+#include <QClipboard>
 #include <QCursor>
 #include <QFile>
 #include <QMoveEvent>
+#include <QPainter>
 #include <QPalette>
 #include <QPolygon>
 #include <QPushButton>
@@ -56,16 +57,17 @@ void Panel::redrawMainWindow() {
     setMask(QRegion(polygon));
 
     // Add style buttons
+    QPushButton *button;
     for (quint8 i = 0; i < 6; ++i) {
         for (quint8 j = 0; j < 2; ++j) {
             for (quint8 k = 0; k < (j + 1) * 2 + 1; ++k) {
-                addStyleButton(i, j + 1, k);
+                button = addStyleButton(i, j + 1, k);
+                connect(button, SIGNAL(clicked()), this, SLOT(copyStyle()));
             }
         }
     }
 
     // Add style buttons
-    QPushButton *button;
     for (quint8 i = 0; i < 6; ++i) {
         button = addBorderButton(i);
         connect(button, SIGNAL(mouseEnter()), this, SLOT(addPanel()));
@@ -74,8 +76,8 @@ void Panel::redrawMainWindow() {
     // Connect button slots
 }
 
-QPushButton *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
-    QPushButton *button = new QPushButton(this);
+Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+    Button *button = new Button(this);
 
     assert(tSlot <= 5);
     assert(1 <= rSlot && rSlot <= 2);
@@ -154,7 +156,43 @@ QPushButton *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
 
     button->setGeometry(minX, minY, maxX - minX, maxY - minY);
     button->setFixedSize(maxX - minX, maxY - minY);
-    button->setText("T");
+    // button->setText("T");
+
+    // TEST: Draw an icon
+    QSize iconSize(
+        int(unitLen / 3. - 2 * qSin(R60) * gapLen),
+        int(qSin(R60) * unitLen / 3. - gapLen));
+
+    QPixmap pixmap(iconSize);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setPen(Qt::white);
+
+    // Translate and rotate are dependent. I.e. the coordinate system used
+    // is always the painter's global coordinate system after movement.
+    if (tSlot == 0 || tSlot == 3) {
+        if ((subSlot + tSlot) % 2) {
+            painter.rotate(60);
+            painter.translate(0., -qSin(R60) * iconSize.width());
+        } else {
+            painter.translate(iconSize.width() / 2., 0);
+            painter.rotate(60);
+        }
+    } else if (tSlot == 2 || tSlot == 5) {
+        if ((subSlot + tSlot) % 2) {
+            painter.rotate(-60);
+            painter.translate(-iconSize.width() / 2., 0);
+        } else {
+            painter.translate(0., qSin(R60) * iconSize.width());
+            painter.rotate(-60);
+        }
+    }
+
+    painter.drawRect(
+        iconSize.width() / 2. - 5, iconSize.height() - 10 - 1, 10, 10);
+
+    button->setIcon(pixmap);
+    button->setIconSize(iconSize);
 
     QPolygon polygon;
     polygon.setPoints(
@@ -167,7 +205,7 @@ QPushButton *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     return button;
 }
 
-QPushButton *Panel::addBorderButton(quint8 tSlot) {
+Button *Panel::addBorderButton(quint8 tSlot) {
     Button *button = new Button(this);
     assert(tSlot <= 5);
 
@@ -231,4 +269,9 @@ void Panel::addPanel() {
         childPanel->show();
         childPanel->move(childPanel->position);
     }
+}
+
+void Panel::copyStyle() {
+    QApplication::clipboard()->setText("some text");
+    std::cout << "Text copied" << std::endl;
 }
