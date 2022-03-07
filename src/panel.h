@@ -1,14 +1,22 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef PANEL_H
+#define PANEL_H
 
+#include <QPushButton>
+#include <QSharedPointer>
+#include <QStack>
 #include <QWidget>
 
 class Panel : public QWidget {
     Q_OBJECT
 private:
+    Panel *parentPanel;
+    QSharedPointer<Panel> childPanel;
+
+    // Absolute screen position
+    QPoint position;
+
 public:
-    Panel(QWidget *parent = nullptr);
-    ~Panel();
+    Panel(Panel *parent = nullptr);
 
     /// @brief Radius of the main hexagon (edge length)
     qint32 unitLen;
@@ -16,7 +24,6 @@ public:
     qint32 gapLen;
 
     void redrawMainWindow();
-
 
     /// @brief Add buttons that applies style to inkscape objects
     /// @param tSlot theta(angle)-slot, range from 0-5
@@ -39,10 +46,15 @@ public:
     /// | a: rSlot=1, b: rSlot=2
     /// | Numbers in cells are subslots
     /// ```
-    void addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot);
+    QPushButton *addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
     /// @brief Add button that fills border of the hexagon
     /// @param tSlot theta(angle)-slot, range from 0-5
-    void addBorderButton(quint8 tSlot);
+    QPushButton *addBorderButton(quint8 tSlot);
+
+    void moveEvent(QMoveEvent *event) override;
+
+private slots:
+    void addPanel();
 };
-#endif // MAINWINDOW_H
+#endif // PANEL_H

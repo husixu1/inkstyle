@@ -1,9 +1,10 @@
-#include "mainwindow.h"
+#include "panel.h"
 
-#include "ui_mainwindow.h"
+#include "button.h"
 
 #include <QCursor>
 #include <QFile>
+#include <QMoveEvent>
 #include <QPalette>
 #include <QPolygon>
 #include <QPushButton>
@@ -13,28 +14,33 @@
 #include <algorithm>
 #include <iostream>
 
+static constexpr double R30 = 30. * M_PI / 180.;
 static constexpr double R60 = 60. * M_PI / 180.;
 
-Panel::Panel(QWidget *parent) : QWidget(parent), unitLen(200), gapLen(2) {
+Panel::Panel(Panel *parent)
+    : QWidget(nullptr), parentPanel(parent), childPanel(nullptr), unitLen(200),
+      gapLen(2) {
     // setPalette(QPalette(QPalette::Window, Qt::transparent));
     // setAttribute(Qt::WA_TranslucentBackground);
+    setWindowFlags(Qt::X11BypassWindowManagerHint);
+    setAttribute(Qt::WA_X11NetWmWindowTypePopupMenu);
     setWindowFlags(Qt::FramelessWindowHint);
-
     redrawMainWindow();
 }
 
-Panel::~Panel() {}
-
 void Panel::redrawMainWindow() {
-
     // Set window location and size to be the bounding box of the hexagon
     QPoint cursorPos = QCursor::pos();
-    setGeometry(
-        // position
-        cursorPos.x() - unitLen, cursorPos.y() - unitLen * qSin(R60),
-        // initial size
-        unitLen * 2, unitLen * qSin(R60) * 2);
+    if (parentPanel)
+        position = parentPanel->position
+                   + QPoint(
+                       int(unitLen * qSqrt(3) * qCos(R30)),
+                       int(unitLen * qSqrt(3) * qSin(R30)));
+    else
+        position = cursorPos - QPoint(unitLen, int(unitLen * qSin(R60)));
+
     setFixedSize(unitLen * 2, unitLen * qSin(R60) * 2);
+    move(position);
 
     // Generate a hexagon
     QPolygon polygon;
@@ -50,23 +56,25 @@ void Panel::redrawMainWindow() {
     setMask(QRegion(polygon));
 
     // Add style buttons
-    for (int i = 0; i < 6; ++i) {
-        for (int j = 0; j < 2; ++j) {
-            for (int k = 0; k < (j + 1) * 2 + 1; ++k) {
+    for (quint8 i = 0; i < 6; ++i) {
+        for (quint8 j = 0; j < 2; ++j) {
+            for (quint8 k = 0; k < (j + 1) * 2 + 1; ++k) {
                 addStyleButton(i, j + 1, k);
             }
         }
     }
 
     // Add style buttons
-    for (int i = 0; i < 6; ++i) {
-        addBorderButton(i);
+    QPushButton *button;
+    for (quint8 i = 0; i < 6; ++i) {
+        button = addBorderButton(i);
+        connect(button, SIGNAL(mouseEnter()), this, SLOT(addPanel()));
     }
 
-    // Add border buttons
+    // Connect button slots
 }
 
-void Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+QPushButton *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     QPushButton *button = new QPushButton(this);
 
     assert(tSlot <= 5);
@@ -155,10 +163,12 @@ void Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
 
     // Set mask
     button->setMask(QRegion(polygon));
+
+    return button;
 }
 
-void Panel::addBorderButton(quint8 tSlot) {
-    QPushButton *button = new QPushButton(this);
+QPushButton *Panel::addBorderButton(quint8 tSlot) {
+    Button *button = new Button(this);
     assert(tSlot <= 5);
 
     // vertex of the trapezoidal button
@@ -193,7 +203,7 @@ void Panel::addBorderButton(quint8 tSlot) {
 
     button->setGeometry(minX, minY, maxX - minX, maxY - minY);
     button->setFixedSize(maxX - minX, maxY - minY);
-    button->setText("T");
+    // button->setText("");
 
     QPolygon polygon;
     polygon.setPoints(
@@ -203,6 +213,22 @@ void Panel::addBorderButton(quint8 tSlot) {
 
     // Set mask
     button->setMask(QRegion(polygon));
+
+    return button;
 }
 
-// TODO: mark tslot boundaries
+void Panel::moveEvent(QMoveEvent *event) {
+    this->position = event->pos();
+    if (this->childPanel)
+        childPanel->move(childPanel->position + event->pos() - event->oldPos());
+}
+
+void Panel::addPanel() {
+    if (!childPanel) {
+        std::cout << "add panel" << std::endl;
+        childPanel = QSharedPointer<Panel>(
+            new Panel(this), [](Panel *panel) { panel->close(); });
+        childPanel->show();
+        childPanel->move(childPanel->position);
+    }
+}

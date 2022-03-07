@@ -11,11 +11,11 @@ CONFIG += c++11
 SOURCES += \
     src/button.cpp \
     src/main.cpp \
-    src/mainwindow.cpp
+    src/panel.cpp
 
 HEADERS += \
     src/button.h \
-    src/mainwindow.h
+    src/panel.h
 
 FORMS +=
 
