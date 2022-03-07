@@ -22,10 +22,13 @@ set(PROJECT_SOURCES
     src/hiddenbutton.cpp
     src/main.cpp
     src/panel.cpp
+    src/configmanager.cpp
     # Headers
     src/button.hpp
     src/hiddenbutton.hpp
     src/panel.hpp
+    src/configmanager.hpp
+    src/constants.hpp
     #Resources
     res.qrc)
 

@@ -1,3 +1,4 @@
+#include "configmanager.hpp"
 #include "panel.hpp"
 
 #include <QApplication>
@@ -5,6 +6,8 @@
 #include <QHotkey>
 
 int main(int argc, char *argv[]) {
+    // Read config
+    ConfigManager config("res/inkstyle.yaml");
 
     QApplication a(argc, argv);
 
@@ -20,14 +23,12 @@ int main(int argc, char *argv[]) {
     // Register hotkey
     QHotkey hotkey(QKeySequence("Ctrl+Shift+F"), true, &a);
     QSharedPointer<Panel> panel(nullptr);
-
     QObject::connect(&hotkey, &QHotkey::activated, qApp, [&]() {
         qDebug() << "Hotkey Activated";
         if (!panel)
             panel = QSharedPointer<Panel>(new Panel);
         panel->show();
     });
-
     QObject::connect(&hotkey, &QHotkey::released, qApp, [&]() {
         qDebug() << "Hotkey Released";
         if (panel)
