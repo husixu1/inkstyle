@@ -8,7 +8,7 @@
 Button::Button(QRect geometry, QRegion mask, qreal hoverScale, QWidget *parent)
     : QPushButton(parent), inactiveGeometry(geometry), inactiveMask(mask),
       hovering(false), animation(this, "geometry"), hoverScale(hoverScale) {
-    assert(hoverScale > 1.);
+    Q_ASSERT(hoverScale > 1.);
 
     setGeometry(geometry);
     setMask(mask);

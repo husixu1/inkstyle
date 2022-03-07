@@ -1,0 +1,30 @@
+---
+global:
+  panel-background: 0x303030
+  button-background: 0x20202020
+  guide-color: 0xffffff
+  panel-max-levels: 2
+  panel-radius: 200
+buttons:
+  - slot: 0x0010
+    stroke: "#000033"
+  - slot: 0x0011
+    stroke: "#330000"
+  - slot: 0x0110
+    font: Times New Roman
+  - slot: 0x0111
+    font: ET Book OT
+  - slot: 0x0210
+    fill: "#ff0000"
+    fill-opacity: 50%
+  - slot: 0x0310
+    fill: "#fff000"
+  - slot: 0x0510
+    svg: |
+      <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      <svg><inkscape:clipboard style="{style_string}"/></svg>
+  - slot: 0x1010
+    stroke-width: 10
+  - slot: 0x1011
+    stroke-width: 20
+...

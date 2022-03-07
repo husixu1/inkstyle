@@ -2,6 +2,7 @@
 #define PANEL_H
 
 #include "button.hpp"
+#include "configmanager.hpp"
 #include "hiddenbutton.hpp"
 
 #include <QPushButton>
@@ -14,63 +15,9 @@
 /// @brief A Panel is a hexagon that contains multiple buttons.
 class Panel : public QWidget {
     Q_OBJECT
-private:
-    /// @brief The grid system to track all panels' locations
-    /// @details
-    /// ```````````````````````````````
-    /// | ---• -1,2  •---•  1,1  •--- |
-    /// |     \     /     \     /     |
-    /// | -2,2 •---•  0,1  •---•  2,0 |
-    /// |     /     \     /     \     |
-    /// | ---• -1,1  •---•  1,0  •--- |
-    /// |     \     /     \     /     |
-    /// | -2,1 •---• (0,0) •---• 2,-1 |
-    /// |     /     \     /     \     |
-    /// | ---• -1,0  •---• 1,-1  •--- |
-    /// |     \     /     \     /     |
-    /// | -2,0 •---• 0,-1  •---• 2,-2 |
-    /// |     /     \     /     \     |
-    /// | ---• -1,-1 •---• 1,-2  •--- |
-    /// ```````````````````````````````
-    static QHash<QPoint, Panel *> panelGrid;
-    QPoint coordinate;
-
-    /// @brief Calculate asbolute position of target panel (relative to this)
-    /// @param[in] tSlot The target panel occupies tSlot of this panel
-    /// @return Coordinate of the target panel
-    inline QPoint calcRelativeCoordinate(quint8 tSlot);
-
-    Panel *parentPanel;
-
-    /// @brief The rslot of the parent panel in which this panel resides
-    quint8 tSlot;
-    QVector<QSharedPointer<Panel>> childPanels;
-    QVector<QSharedPointer<HiddenButton>> borderButtons;
-
-    const qreal hoverScale;
-
-    /// @brief Calculate asbolute position of target panel
-    /// @param[in] tSlot The target panel occupies tSlot of this panel
-    /// @return Absolute position of the target panel
-    inline QPoint calcRelativePanelPos(quint8 tSlot);
-
-    /// @brief Generate mask for a border-button
-    /// @param tSlot The theata-slot that the border-button resides
-    /// @return A list of points, which is the verteces of the mask polygon
-    /// @note The generated point coordinates are relative to this panel
-    QVector<QPoint> genBorderButtonMask(quint8 tSlot);
-
-    /// @brief Update masked area
-    void updateMask();
-
 public:
     Panel(Panel *parent = nullptr, quint8 tSlot = 0);
     virtual ~Panel() override;
-
-    /// @brief Radius of the main hexagon (edge length)
-    qint32 unitLen;
-    /// @brief gap/2 between buttons
-    qint32 gapLen;
 
     /// @brief Add buttons that applies style to inkscape objects
     /// @param tSlot Theta(angle)-slot, 0~5
@@ -100,6 +47,13 @@ public:
     HiddenButton *addBorderButton(quint8 tSlot);
     void delBorderButton(quint8 tSlot);
 
+    static void setConfig(ConfigManager *newConfig);
+
+    static QPixmap drawIcon(qint32 unitLen, quint8 tSlot, quint8 subSlot);
+
+    inline static quint16
+    calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);
+
 protected:
     /// @brief Overridden to recursively move all panels
     void moveEvent(QMoveEvent *event) override;
@@ -107,9 +61,90 @@ protected:
     void closeEvent(QCloseEvent *event) override;
     /// @brief Overridden to update visual guides
     void paintEvent(QPaintEvent *event) override;
+
+private:
+    /// @brief Update masked area
+    void updateMask();
+
+    /// @brief Calculate asbolute position of target panel (relative to this)
+    /// @param[in] tSlot The target panel occupies tSlot of this panel
+    /// @return Coordinate of the target panel
+    /// @see #panelGrid
+    inline QPoint calcRelativeCoordinate(quint8 tSlot);
+
+    /// @brief Calculate asbolute position of target panel
+    /// @param[in] tSlot The target panel occupies tSlot of this panel
+    /// @return Absolute position of the target panel
+    inline QPoint calcRelativePanelPos(quint8 tSlot);
+
+    /// @brief Generate mask for a border-button
+    /// @param tSlot The theata-slot that the border-button resides
+    /// @return A list of points, which is the verteces of the mask polygon
+    /// @note The generated point coordinates are relative to this panel
+    QVector<QPoint> genBorderButtonMask(quint8 tSlot);
+
+signals:
+    void pSlotChanged();
+
 private slots:
     void addPanel(quint8 tSlot);
     void delPanel(quint8 tSlot);
-    void copyStyle();
+    void copyStyle(quint16 slot);
+
+private:
+    /// @brief One global config for all panels
+    static ConfigManager *config;
+
+    /// @brief The grid system to track all panels' locations
+    /// @details
+    /// ```````````````````````````````
+    /// | ---• -1,2  •---•  1,1  •--- |
+    /// |     \     /     \     /     |
+    /// | -2,2 •---•  0,1  •---•  2,0 |
+    /// |     /     \     /     \     |
+    /// | ---• -1,1  •---•  1,0  •--- |
+    /// |     \     /     \     /     |
+    /// | -2,1 •---• (0,0) •---• 2,-1 |
+    /// |     /     \     /     \     |
+    /// | ---• -1,0  •---• 1,-1  •--- |
+    /// |     \     /     \     /     |
+    /// | -2,0 •---• 0,-1  •---• 2,-2 |
+    /// |     /     \     /     \     |
+    /// | ---• -1,-1 •---• 1,-2  •--- |
+    /// ```````````````````````````````
+    static QHash<QPoint, Panel *> panelGrid;
+
+    /// @brief Coordinate in #panelGrid
+    /// @see panelGrid
+    QPoint coordinate;
+
+    /// @brief Panel slot.
+    /// @details Root panel has pSlot of 0. First-level panels (panel opened
+    /// directly from root panel) has pSlot = tSlot + 1. Second and
+    /// above-level panels has pSlot = parentPanel->pSlot + 6
+    quint8 pSlot;
+
+    /// @brief Parent panel of this panel
+    Panel *parentPanel;
+
+    /// @brief The tSlot of the parent panel in which this panel resides
+    quint8 tSlot;
+
+    /// @brief Children panels of this panel
+    QVector<QSharedPointer<Panel>> childPanels;
+
+    /// @brief Border buttons of this panel, for expanding children panels
+    QVector<QSharedPointer<HiddenButton>> borderButtons;
+
+    /// @brief How much should the button scale on mouse hover
+    const qreal hoverScale;
+
+    /// @brief Radius of the main hexagon (edge length)
+    /// @details Must be signed since negative computations are involved
+    qint32 unitLen;
+
+    /// @brief gap/2 between buttons
+    /// @details Must be signed since negative computations are involved
+    qint32 gapLen;
 };
 #endif // PANEL_H

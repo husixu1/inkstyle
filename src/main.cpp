@@ -5,9 +5,10 @@
 #include <QFile>
 #include <QHotkey>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) try {
     // Read config
     ConfigManager config("res/inkstyle.yaml");
+    Panel::setConfig(&config);
 
     QApplication a(argc, argv);
 
@@ -23,13 +24,13 @@ int main(int argc, char *argv[]) {
     // Register hotkey
     QHotkey hotkey(QKeySequence("Ctrl+Shift+F"), true, &a);
     QSharedPointer<Panel> panel(nullptr);
-    QObject::connect(&hotkey, &QHotkey::activated, qApp, [&]() {
+    QObject::connect(&hotkey, &QHotkey::activated, [&]() {
         qDebug() << "Hotkey Activated";
         if (!panel)
             panel = QSharedPointer<Panel>(new Panel);
         panel->show();
     });
-    QObject::connect(&hotkey, &QHotkey::released, qApp, [&]() {
+    QObject::connect(&hotkey, &QHotkey::released, [&]() {
         qDebug() << "Hotkey Released";
         if (panel)
             panel->close();
@@ -37,4 +38,6 @@ int main(int argc, char *argv[]) {
     });
 
     return a.exec();
+} catch (std::exception &e) {
+    qCritical() << e.what();
 }

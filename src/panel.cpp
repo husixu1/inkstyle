@@ -1,9 +1,12 @@
 #include "panel.hpp"
 
+#include "constants.hpp"
+
 #include <QApplication>
 #include <QClipboard>
 #include <QCursor>
 #include <QFile>
+#include <QMimeData>
 #include <QMoveEvent>
 #include <QPaintEngine>
 #include <QPainter>
@@ -20,13 +23,59 @@ static constexpr double R30 = 30. * M_PI / 180.;
 static constexpr double R60 = 60. * M_PI / 180.;
 
 QHash<QPoint, Panel *> Panel::panelGrid;
-
 uint qHash(const QPoint &point, uint seed = 0) {
     return qHash(QPair<int, int>(point.x(), point.y()), seed);
 }
 
+ConfigManager *Panel::config = nullptr;
+void Panel::setConfig(ConfigManager *newConfig) {
+    config = newConfig;
+}
+
+QPixmap Panel::drawIcon(qint32 unitLen, quint8 tSlot, quint8 subSlot) {
+    QSize iconSize(int(unitLen), int(qSin(R60) * unitLen));
+
+    QPixmap pixmap(iconSize);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHints(
+        QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
+    painter.setPen(QPen(Qt::white, 4));
+
+    // Translate and rotate are dependent. I.e. the coordinate system used
+    // is always the painter's global coordinate system after movement.
+    if (tSlot == 0 || tSlot == 3) {
+        if ((subSlot + tSlot) % 2) {
+            painter.rotate(60);
+            painter.translate(0., -qSin(R60) * iconSize.width());
+        } else {
+            painter.translate(iconSize.width() / 2., 0);
+            painter.rotate(60);
+        }
+    } else if (tSlot == 2 || tSlot == 5) {
+        if ((subSlot + tSlot) % 2) {
+            painter.rotate(-60);
+            painter.translate(-iconSize.width() / 2., 0);
+        } else {
+            painter.translate(0., qSin(R60) * iconSize.width());
+            painter.rotate(-60);
+        }
+    }
+
+    painter.drawRect(
+        iconSize.width() / 2. - unitLen / 8, iconSize.height() - unitLen / 2,
+        unitLen / 4, unitLen / 4);
+
+    return pixmap;
+}
+
+quint16
+Panel::calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+    return quint16(pSlot) << 12 | quint16(tSlot) << 8 | rSlot << 4 | subSlot;
+}
+
 QPoint Panel::calcRelativeCoordinate(quint8 tSlot) {
-    assert(tSlot <= 5);
+    Q_ASSERT(tSlot <= 5);
     switch (tSlot) {
     case 0:
         return coordinate + QPoint{1, 0};
@@ -82,9 +131,12 @@ QVector<QPoint> Panel::genBorderButtonMask(quint8 tSlot) {
 
 Panel::Panel(Panel *parent, quint8 tSlot)
     : QWidget(nullptr),
+      pSlot(parent ? parent->parentPanel ? parent->pSlot + 6 : tSlot + 1 : 0),
       coordinate(parent ? parent->calcRelativeCoordinate(tSlot) : QPoint{0, 0}),
       parentPanel(parent), tSlot(tSlot), childPanels(6, nullptr),
       borderButtons(6, nullptr), hoverScale(1.3), unitLen(200), gapLen(2) {
+    // Preconditions
+    Q_ASSERT_X(config, __func__, "Global config not initialized");
 
     // Set common window attributes
     setPalette(QPalette(QPalette::Window, Qt::transparent));
@@ -110,13 +162,15 @@ Panel::Panel(Panel *parent, quint8 tSlot)
     // Add style buttons
     Button *button;
     for (quint8 i = 0; i < 6; ++i) {
-        for (quint8 j = 0; j < 2; ++j) {
-            for (quint8 k = 0; k < (j + 1) * 2 + 1; ++k) {
-                button = addStyleButton(i, j + 1, k);
+        for (quint8 j = 1; j <= 2; ++j) {
+            for (quint8 k = 0; k < j * 2 + 1; ++k) {
+                button = addStyleButton(i, j, k);
                 // Raise for better looking
                 connect(button, &Button::mouseEnter, this, &QWidget::raise);
                 // Set the style on click
-                connect(button, &QPushButton::clicked, this, &Panel::copyStyle);
+                connect(button, &QPushButton::clicked, this, [this, i, j, k] {
+                    copyStyle(calcSlot(pSlot, i, j, k));
+                });
             }
         }
     }
@@ -125,7 +179,7 @@ Panel::Panel(Panel *parent, quint8 tSlot)
     for (quint8 i = 0; i < 6; ++i) {
         if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i))) {
             HiddenButton *borderButton = addBorderButton(i);
-            connect(borderButton, &HiddenButton::mouseEnter, this, [this, i]() {
+            connect(borderButton, &HiddenButton::mouseEnter, this, [this, i] {
                 Panel::addPanel(i);
             });
         }
@@ -158,21 +212,18 @@ void Panel::updateMask() {
     QRegion mask(polygon);
 
     // add border-button masks
-    for (int tSlot = 0; tSlot < borderButtons.size(); ++tSlot) {
-        if (borderButtons[tSlot]) {
-            QVector<QPoint> points = genBorderButtonMask(tSlot);
-            mask += QRegion(QPolygon(points));
-        }
-    }
+    for (int tSlot = 0; tSlot < borderButtons.size(); ++tSlot)
+        if (borderButtons[tSlot])
+            mask += QRegion(QPolygon(genBorderButtonMask(tSlot)));
 
     // Set mask
     setMask(mask);
 }
 
 Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
-    assert(tSlot <= 5);
-    assert(1 <= rSlot && rSlot <= 2);
-    assert(subSlot <= rSlot * 2);
+    Q_ASSERT(tSlot <= 5);
+    Q_ASSERT(1 <= rSlot && rSlot <= 2);
+    Q_ASSERT(subSlot <= rSlot * 2);
 
     // Upper half of the hexagon:
     /*
@@ -254,47 +305,21 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         QRect(minX, minY, maxX - minX, maxY - minY), mask, hoverScale, this);
 
     // TEST: Draw an icon
-    QSize iconSize(
-        int(unitLen / 3. - 2 * qSin(R60) * gapLen),
-        int(qSin(R60) * unitLen / 3. - gapLen));
+    quint16 slot = calcSlot(pSlot, tSlot, rSlot, subSlot);
+    if (config->buttons.contains(slot)) {
+        QSize iconSize(
+            int(unitLen / 3. - 2 * qSin(R60) * gapLen),
+            int(qSin(R60) * unitLen / 3. - gapLen));
 
-    QPixmap pixmap(iconSize);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    painter.setRenderHints(
-        QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
-    painter.setPen(Qt::white);
-
-    // Translate and rotate are dependent. I.e. the coordinate system used
-    // is always the painter's global coordinate system after movement.
-    if (tSlot == 0 || tSlot == 3) {
-        if ((subSlot + tSlot) % 2) {
-            painter.rotate(60);
-            painter.translate(0., -qSin(R60) * iconSize.width());
-        } else {
-            painter.translate(iconSize.width() / 2., 0);
-            painter.rotate(60);
-        }
-    } else if (tSlot == 2 || tSlot == 5) {
-        if ((subSlot + tSlot) % 2) {
-            painter.rotate(-60);
-            painter.translate(-iconSize.width() / 2., 0);
-        } else {
-            painter.translate(0., qSin(R60) * iconSize.width());
-            painter.rotate(-60);
-        }
+        button->setIcon(drawIcon(unitLen, tSlot, subSlot));
+        button->setIconSize(iconSize);
     }
-
-    painter.drawRect(
-        iconSize.width() / 2. - 5, iconSize.height() - 10 - 1, 10, 10);
-    button->setIcon(pixmap);
-    button->setIconSize(iconSize);
 
     return button;
 }
 
 HiddenButton *Panel::addBorderButton(quint8 tSlot) {
-    assert(tSlot <= 5);
+    Q_ASSERT(tSlot <= 5);
 
     if (borderButtons[tSlot])
         return nullptr;
@@ -352,8 +377,7 @@ void Panel::moveEvent(QMoveEvent *event) {
 
 void Panel::closeEvent(QCloseEvent *) {
     // close all child panels first
-    for (auto &panel : childPanels)
-        panel = nullptr;
+    childPanels.fill(nullptr);
 
     // close all parents
     if (parentPanel)
@@ -400,7 +424,7 @@ void Panel::paintEvent(QPaintEvent *) {
 }
 
 void Panel::addPanel(quint8 tSlot) {
-    assert(0 <= tSlot && tSlot <= 5);
+    Q_ASSERT(tSlot <= 5);
 
     // Make sure the panel is only added once
     if (childPanels[tSlot])
@@ -411,7 +435,6 @@ void Panel::addPanel(quint8 tSlot) {
     // Update mask of this
     updateMask();
 
-    qDebug() << "Add panel";
     QSharedPointer<Panel> panel(new Panel(this, tSlot), [](Panel *panel) {
         panel->close();
         panel->deleteLater();
@@ -419,14 +442,15 @@ void Panel::addPanel(quint8 tSlot) {
     childPanels[tSlot] = panel;
     panel->show();
     panel->move(childPanels[tSlot]->pos());
+    qDebug() << "Added panel " << panel->pSlot;
 
     // Update neighbouring panels' border buttons and masks
-    for (quint8 tSlot = 0; tSlot < 6; ++tSlot) {
+    for (quint8 slot = 0; slot < 6; ++slot) {
         // Delete neighboring border buttons
-        QPoint neighborCoordinate = panel->calcRelativeCoordinate(tSlot);
+        QPoint neighborCoordinate = panel->calcRelativeCoordinate(slot);
         if (panelGrid.contains(neighborCoordinate)
             && panelGrid[neighborCoordinate]) {
-            panelGrid[neighborCoordinate]->delBorderButton((tSlot + 3) % 6);
+            panelGrid[neighborCoordinate]->delBorderButton((slot + 3) % 6);
             panelGrid[neighborCoordinate]->updateMask();
         }
     }
@@ -436,13 +460,20 @@ void Panel::addPanel(quint8 tSlot) {
 }
 
 void Panel::delPanel(quint8 tSlot) {
-    assert(tSlot <= 5);
+    Q_ASSERT(tSlot <= 5);
     if (!childPanels[tSlot])
         return;
     childPanels[tSlot] = nullptr;
 }
 
-void Panel::copyStyle() {
-    QApplication::clipboard()->setText("some text");
-    qDebug() << "Style copied";
+void Panel::copyStyle(quint16 slot) {
+    if (config->buttons.contains(slot)) {
+        QMimeData *styleSvg = new QMimeData;
+        styleSvg->setData(
+            C::SC::styleMimeType, config->buttons[slot].styleSvg.toUtf8());
+        QApplication::clipboard()->setMimeData(styleSvg);
+        qDebug() << "Style copied " << styleSvg->data(C::SC::styleMimeType);
+    } else {
+        qDebug() << "No style copied";
+    }
 }

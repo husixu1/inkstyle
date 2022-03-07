@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>res/default.qss</file>
+        <file>res/default.yaml</file>
     </qresource>
 </RCC>

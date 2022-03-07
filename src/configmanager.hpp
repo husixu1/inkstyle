@@ -6,9 +6,14 @@
 #include <QIcon>
 #include <QObject>
 #include <QString>
+#include <yaml-cpp/yaml.h>
 
 class ConfigManager : public QObject {
     Q_OBJECT
+
+private:
+    void parseConfig(const YAML::Node &config);
+
 public:
     explicit ConfigManager(const QString configFile, QObject *parent = nullptr);
 
@@ -18,7 +23,7 @@ public:
     quint8 panelMaxLevels;
     quint32 panelRadius;
 
-    class ButtonInfo {
+    struct ButtonInfo {
         QIcon icon;
         QString styleSvg;
     };

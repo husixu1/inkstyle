@@ -3,46 +3,106 @@
 #include "constants.hpp"
 
 #include <QDebug>
-#include <yaml-cpp/yaml.h>
+#include <QFile>
+#include <QStringList>
 
-ConfigManager::ConfigManager(const QString configFile, QObject *parent)
-    : QObject(parent) {
+void ConfigManager::parseConfig(const YAML::Node &config) {
     using namespace C::CK;
 
-    YAML::Node config = YAML::LoadFile(configFile.toStdString());
     if (config[globalConfig].IsDefined()) {
         if (!config[globalConfig].IsMap())
-            qWarning() << "'" << globalConfig << "' is not a map, skpping";
+            qWarning() << "'" << globalConfig << "' is not a map, skipping";
+        const YAML::Node &gConfig = config[globalConfig];
 
-        // TODO: load global configs
-        if (config[G::panelBgColor].IsScalar()) {
-        }
-        if (config[G::panelRadius].IsScalar()) {
-        }
-        //...
+        // load global configs
+        if (gConfig[GK::panelBgColor].IsScalar())
+            panelBgColor = gConfig[GK::panelBgColor].as<quint32>();
+        if (gConfig[GK::buttonBgColor].IsScalar())
+            panelBgColor = gConfig[GK::buttonBgColor].as<quint32>();
+        if (gConfig[GK::guideColor].IsScalar())
+            panelBgColor = gConfig[GK::guideColor].as<quint32>();
+        if (gConfig[GK::panelMaxLevels].IsScalar())
+            panelMaxLevels = gConfig[GK::panelMaxLevels].as<quint8>();
+        if (gConfig[GK::panelRadius].IsScalar())
+            panelRadius = gConfig[GK::panelRadius].as<quint32>();
     }
 
     if (config[buttonsConfig].IsDefined()) {
         if (!config[buttonsConfig].IsSequence())
-            qWarning() << "'" << buttonsConfig << "' is not a list, skipping";
+            qWarning() << "'" << buttonsConfig
+                       << "' is not a list. Skipping...";
 
         size_t numButtons = 0;
-        for (const YAML::Node &node : config[buttonsConfig]) {
-            if (!node.IsMap())
+        for (const YAML::Node &button : config[buttonsConfig]) {
+            if (!button.IsMap())
                 qWarning() << "The " << (numButtons + 1)
                            << "-th button is not defined as a map. Skipping...";
-            if (!node[B::slot].IsDefined())
+
+            // Check for validity and availability of slots
+            if (!button[BK::slot].IsScalar()) {
                 qWarning() << "The " << (numButtons + 1)
-                           << "-th button does not have a 'slot' key. Skipping";
-            quint16 slot = node[B::slot].as<quint16>();
-            qDebug() << "Registering button " << Qt::hex << slot;
-
-            if (buttons.contains(slot)) {
-                qWarning() << "";
+                           << "-th button's \"slot\" value is either not "
+                              "defined or not a number. Skipping...";
+                continue;
             }
-            // TODO: load buttons
+            quint16 slot = button[BK::slot].as<quint16>();
+            if (((slot >> 12) & 0xf) > panelMaxLevels * 6
+                || ((slot >> 8) & 0xf) > 5 || ((slot >> 4) & 0xf) > 2
+                || (slot & 0xf) > ((slot >> 8) & 0xf) * 2) {
+                qWarning() << "Slot " << Qt::hex << slot
+                           << " invalid. Skipping...";
+                continue;
+            }
+            if (buttons.contains(slot)) {
+                qWarning() << "Slot " << Qt::hex << slot
+                           << " already registered. Skipping...";
+                continue;
+            }
 
+            // Load button styles
+            qDebug() << "Registering slot " << Qt::hex << slot;
+            QStringList styles;
+
+            // load standard styles
+            static const char *standardStyles[] = {
+                BK::strokeColor, BK::strokeWidth, BK::strokeDashArray,
+                BK::strokeStart, BK::strokeEnd,   BK::fill,
+                BK::fillOpacity, BK::fillGradient};
+            for (const char *style : standardStyles)
+                if (button[style].IsDefined())
+                    styles.append(
+                        QString(style) + ":"
+                        + button[style].as<std::string>().c_str());
+
+            // TODO: load non-standard styles
+
+            // TODO: compose styles to xml
+            buttons.insert(
+                slot,
+                ButtonInfo{
+                    QIcon(/*TODO*/),
+                    QString(C::SC::plainStyleTemplate)
+                        .replace(C::SC::stylePlaceHolder, styles.join(";"))});
             ++numButtons;
         }
+    }
+}
+
+ConfigManager::ConfigManager(const QString configFile, QObject *parent)
+    : QObject(parent) {
+
+    // Parse default config
+    QFile baseConfig(":/res/default.yaml");
+    baseConfig.open(QFile::ReadOnly);
+    YAML::Node defaultConfig = YAML::Load(baseConfig.readAll().toStdString());
+    baseConfig.close();
+    parseConfig(defaultConfig);
+
+    // Parse user config
+    if (QFile(configFile).exists()) {
+        YAML::Node userConfig = YAML::LoadFile(configFile.toStdString());
+        parseConfig(userConfig);
+    } else {
+        qWarning() << "No config file found. Using default config.";
     }
 }
