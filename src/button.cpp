@@ -5,9 +5,9 @@
 #include <QTransform>
 #include <iostream>
 
-Button::Button(QRect geometry, QRegion mask, QWidget *parent)
+Button::Button(QRect geometry, QRegion mask, qreal hoverScale, QWidget *parent)
     : QPushButton(parent), inactiveGeometry(geometry), inactiveMask(mask),
-      hovering(false), hoverScale(1.2), animation(this, "geometry") {
+      hovering(false), animation(this, "geometry"), hoverScale(hoverScale) {
     assert(hoverScale > 1.);
 
     setGeometry(geometry);

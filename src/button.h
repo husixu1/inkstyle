@@ -8,8 +8,24 @@
 
 class Button : public QPushButton {
     Q_OBJECT
+
+private:
+    QRect inactiveGeometry;
+    QRegion inactiveMask;
+
+    QPoint mousePos;
+    bool hovering;
+
+    QPropertyAnimation animation;
+    void startAnimation();
+
 public:
-    Button(QRect geometry, QRegion mask, QWidget *parent = nullptr);
+    const qreal hoverScale;
+
+public:
+    Button(
+        QRect geometry, QRegion mask, qreal hoverScale,
+        QWidget *parent = nullptr);
 
 protected:
     virtual void enterEvent(QEvent *e) override;
@@ -20,17 +36,6 @@ protected:
     virtual void resizeEvent(QResizeEvent *e) override;
 
     virtual void paintEvent(QPaintEvent *e) override;
-
-private:
-    QRect inactiveGeometry;
-    QRegion inactiveMask;
-
-    QPoint mousePos;
-    bool hovering;
-    const qreal hoverScale;
-
-    QPropertyAnimation animation;
-    void startAnimation();
 
 signals:
     void mouseEnter();

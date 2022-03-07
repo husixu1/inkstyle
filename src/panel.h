@@ -1,24 +1,53 @@
 #ifndef PANEL_H
-#    define PANEL_H
+#define PANEL_H
 
-#    include "button.h"
-#    include "hiddenbutton.h"
+#include "button.h"
+#include "hiddenbutton.h"
 
-#    include <QPushButton>
-#    include <QSharedPointer>
-#    include <QStack>
-#    include <QVector>
-#    include <QWeakPointer>
-#    include <QWidget>
+#include <QPushButton>
+#include <QSharedPointer>
+#include <QStack>
+#include <QVector>
+#include <QWeakPointer>
+#include <QWidget>
 
+/// @brief A Panel is a hexagon that contains multiple buttons.
 class Panel : public QWidget {
     Q_OBJECT
 private:
+    /// @brief The grid system to track all panels' locations
+    /// @details
+    /// ```````````````````````````````
+    /// | ---• -1,2  •---•  1,1  •--- |
+    /// |     \     /     \     /     |
+    /// | -2,2 •---•  0,1  •---•  2,0 |
+    /// |     /     \     /     \     |
+    /// | ---• -1,1  •---•  1,0  •--- |
+    /// |     \     /     \     /     |
+    /// | -2,1 •---• (0,0) •---• 2,-1 |
+    /// |     /     \     /     \     |
+    /// | ---• -1,0  •---• 1,-1  •--- |
+    /// |     \     /     \     /     |
+    /// | -2,0 •---• 0,-1  •---• 2,-2 |
+    /// |     /     \     /     \     |
+    /// | ---• -1,-1 •---• 1,-2  •--- |
+    /// ```````````````````````````````
+    static QHash<QPoint, Panel *> panelGrid;
+    QPoint coordinate;
+
+    /// @brief Calculate asbolute position of target panel (relative to this)
+    /// @param[in] tSlot The target panel occupies tSlot of this panel
+    /// @return Coordinate of the target panel
+    inline QPoint calcRelativeCoordinate(quint8 tSlot);
+
     Panel *parentPanel;
+
     /// @brief The rslot of the parent panel in which this panel resides
     quint8 tSlot;
     QVector<QSharedPointer<Panel>> childPanels;
     QVector<QSharedPointer<HiddenButton>> borderButtons;
+
+    const qreal hoverScale;
 
     /// @brief Calculate asbolute position of target panel
     /// @param[in] tSlot The target panel occupies tSlot of this panel
@@ -36,6 +65,7 @@ private:
 
 public:
     Panel(Panel *parent = nullptr, quint8 tSlot = 0);
+    virtual ~Panel() override;
 
     /// @brief Radius of the main hexagon (edge length)
     qint32 unitLen;
@@ -47,7 +77,8 @@ public:
     /// @brief Add buttons that applies style to inkscape objects
     /// @param tSlot Theta(angle)-slot, 0~5
     /// @param rSlot Radius-slot, 1~2
-    /// @param subSlot Sub-slot when angle and radius is defined, 0~(rSlot*2)
+    /// @param subSlot Sub-slot when angle and radius is defined,
+    /// 0~(rSlot*2)
     /// @details
     /// `````````````````````````````````````````
     /// |           \    tSlot=1    /           |
@@ -58,7 +89,7 @@ public:
     /// |          / \ / \2/1\0/2\3/2\          |
     /// |         •---•---•---•---•---•         |
     /// |        / \ / \ /     \1/0\1/0\        |
-    /// |   --  •-b-•-a-•   C   •-a-•-b-•  --   |
+    /// |  ---  •-b-•-a-•   C   •-a-•-b-•  ---  |
     /// |                                       |
     /// | C: center                             |
     /// | a: rSlot=1, b: rSlot=2                |
@@ -72,7 +103,9 @@ public:
     void delBorderButton(quint8 tSlot);
 
 protected:
+    /// @brief Overridden to recursively move all panels
     void moveEvent(QMoveEvent *event) override;
+    /// @brief Overridden to recursively close all panels
     void closeEvent(QCloseEvent *event) override;
 
 private slots:

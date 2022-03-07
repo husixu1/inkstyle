@@ -19,6 +19,32 @@
 static constexpr double R30 = 30. * M_PI / 180.;
 static constexpr double R60 = 60. * M_PI / 180.;
 
+QHash<QPoint, Panel *> Panel::panelGrid;
+
+uint qHash(const QPoint &point, uint seed = 0) {
+    return qHash(QPair<int, int>(point.x(), point.y()), seed);
+}
+
+QPoint Panel::calcRelativeCoordinate(quint8 tSlot) {
+    assert(0 <= tSlot && tSlot <= 5);
+    switch (tSlot) {
+    case 0:
+        return coordinate + QPoint{1, 0};
+    case 1:
+        return coordinate + QPoint{0, 1};
+    case 2:
+        return coordinate + QPoint{-1, 1};
+    case 3:
+        return coordinate + QPoint{-1, 0};
+    case 4:
+        return coordinate + QPoint{0, -1};
+    case 5:
+        return coordinate + QPoint{1, -1};
+    default:
+        return QPoint{0, 0};
+    }
+}
+
 QPoint Panel::calcRelativePanelPos(quint8 tSlot) {
     return pos()
            + QPoint(
@@ -55,15 +81,28 @@ QVector<QPoint> Panel::genBorderButtonMask(quint8 tSlot) {
 }
 
 Panel::Panel(Panel *parent, quint8 tSlot)
-    : QWidget(nullptr), parentPanel(parent), tSlot(tSlot),
-      childPanels(6, nullptr), borderButtons(6, nullptr), unitLen(200),
-      gapLen(2) {
-    // setPalette(QPalette(QPalette::Window, Qt::transparent));
+    : QWidget(nullptr),
+      coordinate(parent ? parent->calcRelativeCoordinate(tSlot) : QPoint{0, 0}),
+      parentPanel(parent), tSlot(tSlot), childPanels(6, nullptr),
+      borderButtons(6, nullptr), hoverScale(1.2), unitLen(200), gapLen(2) {
+
+    // Set common window attributes
+    setPalette(QPalette(QPalette::Window, Qt::transparent));
     setAttribute(Qt::WA_TranslucentBackground);
     // setWindowFlags(Qt::X11BypassWindowManagerHint);
     // setAttribute(Qt::WA_X11NetWmWindowTypePopupMenu);
     setWindowFlags(Qt::FramelessWindowHint);
+
+    // Add panel to grid
+    panelGrid[coordinate] = this;
+
+    // Draw panel
     redraw();
+}
+
+Panel::~Panel() {
+    // unregister this from panelGrid
+    panelGrid.remove(coordinate);
 }
 
 void Panel::redraw() {
@@ -82,6 +121,9 @@ void Panel::redraw() {
         for (quint8 j = 0; j < 2; ++j) {
             for (quint8 k = 0; k < (j + 1) * 2 + 1; ++k) {
                 button = addStyleButton(i, j + 1, k);
+                // Raise for better looking
+                connect(button, &Button::mouseEnter, this, &QWidget::raise);
+                // Set the style on click
                 connect(button, &QPushButton::clicked, this, &Panel::copyStyle);
             }
         }
@@ -89,7 +131,7 @@ void Panel::redraw() {
 
     // Add border buttons, skip the occupied edge
     for (quint8 i = 0; i < 6; ++i) {
-        if (!parentPanel || (abs(i - tSlot) != 3)) {
+        if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i))) {
             HiddenButton *borderButton = addBorderButton(i);
             connect(borderButton, &HiddenButton::mouseEnter, this, [=]() {
                 Panel::addPanel(i);
@@ -106,8 +148,10 @@ void Panel::updateMask() {
     QVector<int> points;
     for (size_t i = 0; i < 6; ++i) {
         points.append(
-            {int(size().width() / 2. + unitLen * qCos(R60 * i)),
-             int(size().height() / 2. + unitLen * qSin(R60 * i))});
+            {int(size().width() / 2.
+                 + unitLen * qCos(R60 * i) * (1. + (hoverScale - 1.) / 3.)),
+             int(size().height() / 2.
+                 + unitLen * qSin(R60 * i) * (1. + (hoverScale - 1.) / 3.))});
     }
     polygon.setPoints(6, points.data());
     QRegion mask(polygon);
@@ -205,8 +249,8 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         3, points[0].x() - minX, points[0].y() - minY, points[1].x() - minX,
         points[1].y() - minY, points[2].x() - minX, points[2].y() - minY);
 
-    Button *button =
-        new Button(QRect(minX, minY, maxX - minX, maxY - minY), mask, this);
+    Button *button = new Button(
+        QRect(minX, minY, maxX - minX, maxY - minY), mask, hoverScale, this);
 
     // TEST: Draw an icon
     QSize iconSize(
@@ -317,14 +361,32 @@ void Panel::closeEvent(QCloseEvent *) {
 
 void Panel::addPanel(quint8 tSlot) {
     assert(0 <= tSlot && tSlot <= 5);
+
+    // Make sure the panel is only added once
+    if (childPanels[tSlot])
+        return;
+
+    // Delete corresponding border button of this
     delBorderButton(tSlot);
+    // Update mask of this
     updateMask();
-    if (!childPanels[tSlot]) {
-        std::cout << "add panel" << std::endl;
-        childPanels[tSlot] = QSharedPointer<Panel>(
-            new Panel(this, tSlot), [](Panel *panel) { panel->close(); });
-        childPanels[tSlot]->show();
-        childPanels[tSlot]->move(childPanels[tSlot]->pos());
+
+    std::cout << "add panel" << std::endl;
+    QSharedPointer<Panel> panel(
+        new Panel(this, tSlot), [](Panel *panel) { panel->close(); });
+    childPanels[tSlot] = panel;
+    panel->show();
+    panel->move(childPanels[tSlot]->pos());
+
+    // Update neighbouring panels' border buttons and masks
+    for (quint8 tSlot = 0; tSlot < 6; ++tSlot) {
+        // Delete neighboring border buttons
+        QPoint neighborCoordinate = panel->calcRelativeCoordinate(tSlot);
+        if (panelGrid.contains(neighborCoordinate)
+            && panelGrid[neighborCoordinate]) {
+            panelGrid[neighborCoordinate]->delBorderButton((tSlot + 3) % 6);
+            panelGrid[neighborCoordinate]->updateMask();
+        }
     }
 }
 
