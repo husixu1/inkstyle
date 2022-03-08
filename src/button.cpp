@@ -1,21 +1,33 @@
 #include "button.hpp"
 
 #include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
 #include <QResizeEvent>
 #include <QTransform>
 #include <iostream>
 
-Button::Button(QRect geometry, QRegion mask, qreal hoverScale, QWidget *parent)
-    : QPushButton(parent), inactiveGeometry(geometry), inactiveMask(mask),
-      hovering(false), animation(this, "geometry"), hoverScale(hoverScale) {
+Button::Button(
+    QRect geometry, QPolygonF maskPolygon, qreal hoverScale, QPointF bgOffset,
+    QWidget *parent)
+    : QPushButton(parent), inactiveGeometry(geometry),
+      inactiveMask(maskPolygon), hoverScale(hoverScale), bgOffset(bgOffset),
+      inactiveBgColor(0x202020), activeBgColor(0x101010), hovering(false),
+      bgColor(inactiveBgColor), animations(),
+      geometryAnimation(this, "geometry"), bgColorAnimation(this, "bgColor") {
     Q_ASSERT(hoverScale > 1.);
 
     setGeometry(geometry);
-    setMask(mask);
+    setMask(maskPolygon.toPolygon());
 
     // initialize animation
-    animation.setDuration(120);
-    animation.setStartValue(geometry);
+    geometryAnimation.setDuration(120);
+    geometryAnimation.setStartValue(inactiveGeometry);
+    animations.addAnimation(&geometryAnimation);
+
+    bgColorAnimation.setDuration(120);
+    bgColorAnimation.setStartValue(inactiveBgColor);
+    animations.addAnimation(&bgColorAnimation);
 }
 
 void Button::enterEvent(QEvent *) {
@@ -40,35 +52,66 @@ void Button::mouseMoveEvent(QMouseEvent *) {
 }
 
 void Button::resizeEvent(QResizeEvent *e) {
-    QTransform transform = QTransform::fromScale(
-        qreal(e->size().width()) / qreal(inactiveGeometry.width()),
-        qreal(e->size().height()) / qreal(inactiveGeometry.height()));
-    setMask(inactiveMask * transform);
+    // transform icon
+    setIconSize(e->size());
+
+    // Transform the mask. We paint the background polygon explicity and offset
+    // the mask by 2px so that the background edge can get antialiased. (There's
+    // no antialias effect if we only mask the button with QRegion)
+    QTransform transform =
+        QTransform::fromScale(
+            qreal(e->size().width() + 4) / qreal(inactiveGeometry.width()),
+            qreal(e->size().height() + 4) / qreal(inactiveGeometry.height()))
+        * QTransform::fromTranslate(-2, -2);
+    setMask((inactiveMask * transform).toPolygon());
 }
 
 void Button::paintEvent(QPaintEvent *e) {
-    // set geometry (coordinate, size)
+    QPainter painter(this);
 
-    // trasnform mask
+    painter.setRenderHints(
+        QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
+    painter.setPen(bgColor);
+    painter.setBrush(bgColor);
 
+    // Paint the background polygon explicitly
+    QTransform transform =
+        QTransform::fromScale(
+            qreal(width()) / qreal(inactiveGeometry.width()),
+            qreal(height()) / qreal(inactiveGeometry.height()))
+        * QTransform::fromTranslate(bgOffset.x(), bgOffset.y());
+    painter.drawPolygon(inactiveMask * transform);
+
+    // Let parent object paint icons
     QPushButton::paintEvent(e);
 }
 
+const QColor &Button::getBgColor() const {
+    return bgColor;
+}
+
+void Button::setBgColor(const QColor &newBgColor) {
+    bgColor = newBgColor;
+}
+
 void Button::startAnimation() {
-    animation.stop();
-    animation.setStartValue(animation.currentValue());
+    animations.stop();
+    geometryAnimation.setStartValue(geometryAnimation.currentValue());
+    bgColorAnimation.setStartValue(bgColorAnimation.currentValue());
     if (hovering) {
         raise();
-        animation.setEndValue(QRect(
+        geometryAnimation.setEndValue(QRect(
             inactiveGeometry.x()
                 - inactiveGeometry.width() * (hoverScale - 1.) / 2.,
             inactiveGeometry.y()
                 - inactiveGeometry.height() * (hoverScale - 1.) / 2.,
             inactiveGeometry.width() * hoverScale,
             inactiveGeometry.height() * hoverScale));
+        bgColorAnimation.setEndValue(activeBgColor);
     } else {
         lower();
-        animation.setEndValue(inactiveGeometry);
+        geometryAnimation.setEndValue(inactiveGeometry);
+        bgColorAnimation.setEndValue(inactiveBgColor);
     }
-    animation.start();
+    animations.start();
 }

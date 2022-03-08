@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QPalette>
 #include <QPolygon>
+#include <QPolygonF>
 #include <QPushButton>
 #include <QRegion>
 #include <QVector>
@@ -96,9 +97,10 @@ QPoint Panel::calcRelativeCoordinate(quint8 tSlot) {
 
 QPoint Panel::calcRelativePanelPos(quint8 tSlot) {
     return pos()
-           + QPoint(
-               int(unitLen * qSqrt(3) * qCos(R30 + R60 * tSlot)),
-               int(-unitLen * qSqrt(3) * qSin(R30 + R60 * tSlot)));
+           + QPointF(
+                 unitLen * qSqrt(3) * qCos(R30 + R60 * tSlot),
+                 -unitLen * qSqrt(3) * qSin(R30 + R60 * tSlot))
+                 .toPoint();
 }
 
 QVector<QPoint> Panel::genBorderButtonMask(quint8 tSlot) {
@@ -131,19 +133,16 @@ QVector<QPoint> Panel::genBorderButtonMask(quint8 tSlot) {
 
 Panel::Panel(Panel *parent, quint8 tSlot)
     : QWidget(nullptr),
-      pSlot(parent ? parent->parentPanel ? parent->pSlot + 6 : tSlot + 1 : 0),
       coordinate(parent ? parent->calcRelativeCoordinate(tSlot) : QPoint{0, 0}),
+      pSlot(parent ? parent->parentPanel ? parent->pSlot + 6 : tSlot + 1 : 0),
       parentPanel(parent), tSlot(tSlot), childPanels(6, nullptr),
-      borderButtons(6, nullptr), hoverScale(1.3), unitLen(200), gapLen(2) {
+      borderButtons(6, nullptr), hoverScale(1.3), unitLen(200), gapLen(3) {
     // Preconditions
     Q_ASSERT_X(config, __func__, "Global config not initialized");
 
     // Set common window attributes
-    setPalette(QPalette(QPalette::Window, Qt::transparent));
     setAttribute(Qt::WA_TranslucentBackground);
-    // setWindowFlags(Qt::X11BypassWindowManagerHint);
-    // setAttribute(Qt::WA_X11NetWmWindowTypePopupMenu);
-    setWindowFlags(Qt::FramelessWindowHint);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 
     // Add panel to grid
     panelGrid[coordinate] = this;
@@ -242,74 +241,74 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     // 2: the 2nd point
     // 3: the 3rd point
 
-    // vertex of the triangular button
-    QVector<QPoint> points = {
+    // Vertex of the triangular button (coordinates relative to panel)
+    QVector<QPointF> points = {
         {
             // The 1st point
-            int(size().width() / 2.
+            size().width() / 2.
                 // Base x
                 + ((rSlot * qCos(tSlot * R60)
                     + (subSlot / 2) * qCos((tSlot + 2) * R60))
                        * unitLen / 3.
                    // Offset for border
-                   + gapLen * qCos((tSlot + 0.5 + (subSlot % 2)) * R60))),
-            int(size().height() / 2.
+                   + gapLen * qCos((tSlot + 0.5 + (subSlot % 2)) * R60)),
+            size().height() / 2.
                 // Base y
                 - ((rSlot * qSin(tSlot * R60)
                     + (subSlot / 2) * qSin((tSlot + 2) * R60))
                        * unitLen / 3.
                    // Offset for border
-                   + gapLen * qSin((tSlot + 0.5 + (subSlot % 2)) * R60))),
+                   + gapLen * qSin((tSlot + 0.5 + (subSlot % 2)) * R60)),
         },
         {
             // The 2nd point
-            int(size().width() / 2.
+            size().width() / 2.
                 + (((rSlot + 1 - (subSlot % 2)) * qCos(tSlot * R60)
                     + ((subSlot + 1) / 2) * qCos((tSlot + 2) * R60))
                        * unitLen / 3.
-                   + gapLen * qCos((tSlot + 2.5 - (subSlot % 2) * 3) * R60))),
-            int(size().height() / 2.
+                   + gapLen * qCos((tSlot + 2.5 - (subSlot % 2) * 3) * R60)),
+            size().height() / 2.
                 - (((rSlot + 1 - (subSlot % 2)) * qSin(tSlot * R60)
                     + ((subSlot + 1) / 2) * qSin((tSlot + 2) * R60))
                        * unitLen / 3.
-                   + gapLen * qSin((tSlot + 2.5 - (subSlot % 2) * 3) * R60))),
+                   + gapLen * qSin((tSlot + 2.5 - (subSlot % 2) * 3) * R60)),
         },
         {
             // The 3rd point
-            int(size().width() / 2.
+            size().width() / 2.
                 + (((rSlot + 1) * qCos(tSlot * R60)
                     + (subSlot / 2 + 1) * qCos((tSlot + 2) * R60))
                        * unitLen / 3.
-                   + gapLen * qCos((tSlot - 1.5 - (subSlot % 2)) * R60))),
-            int(size().height() / 2.
+                   + gapLen * qCos((tSlot - 1.5 - (subSlot % 2)) * R60)),
+            size().height() / 2.
                 - (((rSlot + 1) * qSin(tSlot * R60)
                     + (subSlot / 2 + 1) * qSin((tSlot + 2) * R60))
                        * unitLen / 3.
-                   + gapLen * qSin((tSlot - 1.5 - (subSlot % 2)) * R60))),
+                   + gapLen * qSin((tSlot - 1.5 - (subSlot % 2)) * R60)),
         }};
 
-    QVector<int> xs = {points[0].x(), points[1].x(), points[2].x()};
-    QVector<int> ys = {points[0].y(), points[1].y(), points[2].y()};
+    QVector<qreal> xs = {points[0].x(), points[1].x(), points[2].x()};
+    QVector<qreal> ys = {points[0].y(), points[1].y(), points[2].y()};
 
-    int minX = *std::min_element(xs.begin(), xs.end());
-    int minY = *std::min_element(ys.begin(), ys.end());
-    int maxX = *std::max_element(xs.begin(), xs.end());
-    int maxY = *std::max_element(ys.begin(), ys.end());
+    qreal minX = *std::min_element(xs.begin(), xs.end());
+    qreal minY = *std::min_element(ys.begin(), ys.end());
+    qreal maxX = *std::max_element(xs.begin(), xs.end());
+    qreal maxY = *std::max_element(ys.begin(), ys.end());
 
-    QPolygon mask;
-    mask.setPoints(
-        3, points[0].x() - minX, points[0].y() - minY, points[1].x() - minX,
-        points[1].y() - minY, points[2].x() - minX, points[2].y() - minY);
+    QPolygonF mask(points);
+    mask.translate(-minX, -minY);
 
+    QRectF geometry(minX, minY, maxX - minX, maxY - minY);
     Button *button = new Button(
-        QRect(minX, minY, maxX - minX, maxY - minY), mask, hoverScale, this);
+        geometry.toRect(), mask, hoverScale,
+        geometry.topLeft() - geometry.toRect().topLeft(), this);
 
     // TEST: Draw an icon
     quint16 slot = calcSlot(pSlot, tSlot, rSlot, subSlot);
     if (config->buttons.contains(slot)) {
         QSize iconSize(
-            int(unitLen / 3. - 2 * qSin(R60) * gapLen),
-            int(qSin(R60) * unitLen / 3. - gapLen));
+            int(unitLen / 3. - 2 * qCos(R30) * gapLen),
+            int(qSin(R60) * (unitLen / 3. - 2 * qCos(R30) * gapLen)));
 
         button->setIcon(drawIcon(unitLen, tSlot, subSlot));
         button->setIconSize(iconSize);
@@ -336,8 +335,6 @@ HiddenButton *Panel::addBorderButton(quint8 tSlot) {
     int minY = *std::min_element(ys.begin(), ys.end());
     int maxX = *std::max_element(xs.begin(), xs.end());
     int maxY = *std::max_element(ys.begin(), ys.end());
-
-    // button->setText("");
 
     QPolygon polygon;
     polygon.setPoints(
@@ -388,7 +385,7 @@ void Panel::paintEvent(QPaintEvent *) {
     QPainter painter(this);
     painter.setRenderHints(
         QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
-    painter.setPen(QPen(Qt::white, 3, Qt::SolidLine, Qt::RoundCap));
+    painter.setPen(QPen(Qt::white, gapLen - 1, Qt::SolidLine, Qt::RoundCap));
     QPointF center(geometry().width() / 2, geometry().height() / 2);
 
     if (!parentPanel) {
@@ -406,7 +403,7 @@ void Panel::paintEvent(QPaintEvent *) {
             });
         painter.drawLines(lines);
     } else {
-        // For child panes, draw on borders
+        // For child panels, draw on borders
         QVector<QLineF> lines;
         for (quint8 i = 0; i < 6; ++i)
             if (!((i + 3) % 6 == tSlot || childPanels[i]))

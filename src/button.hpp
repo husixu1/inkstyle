@@ -2,6 +2,7 @@
 #define BUTTON_H
 
 #include <QEvent>
+#include <QParallelAnimationGroup>
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QRegion>
@@ -10,22 +11,32 @@ class Button : public QPushButton {
     Q_OBJECT
 
 private:
-    QRect inactiveGeometry;
-    QRegion inactiveMask;
+    const QRect inactiveGeometry;
+    const QPolygonF inactiveMask;
+    const qreal hoverScale;
+    /// @brief For calibrating the sub-pixel position of the background
+    const QPointF bgOffset;
+    const QColor inactiveBgColor;
+    const QColor activeBgColor;
 
     QPoint mousePos;
     bool hovering;
 
-    QPropertyAnimation animation;
+    QColor bgColor;
+    Q_PROPERTY(QColor bgColor READ getBgColor WRITE setBgColor)
+
+    QParallelAnimationGroup animations;
+    QPropertyAnimation geometryAnimation;
+    QPropertyAnimation bgColorAnimation;
     void startAnimation();
 
 public:
-    const qreal hoverScale;
-
-public:
     Button(
-        QRect geometry, QRegion mask, qreal hoverScale,
+        QRect geometry, QPolygonF mask, qreal hoverScale, QPointF bgOffset,
         QWidget *parent = nullptr);
+
+    const QColor &getBgColor() const;
+    void setBgColor(const QColor &newBgColor);
 
 protected:
     virtual void enterEvent(QEvent *e) override;

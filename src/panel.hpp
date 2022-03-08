@@ -141,10 +141,10 @@ private:
 
     /// @brief Radius of the main hexagon (edge length)
     /// @details Must be signed since negative computations are involved
-    qint32 unitLen;
+    const qreal unitLen;
 
-    /// @brief gap/2 between buttons
+    /// @brief gap between buttons
     /// @details Must be signed since negative computations are involved
-    qint32 gapLen;
+    const qreal gapLen;
 };
 #endif // PANEL_H

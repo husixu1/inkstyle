@@ -12,6 +12,7 @@ protected:
     virtual void enterEvent(QEvent *e) override;
     virtual void leaveEvent(QEvent *e) override;
 
+    virtual void paintEvent(QPaintEvent *e) override;
 signals:
     void mouseEnter();
     void mouseLeave();
