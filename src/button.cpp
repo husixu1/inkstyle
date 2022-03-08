@@ -8,11 +8,12 @@
 #include <iostream>
 
 Button::Button(
-    QRect geometry, QPolygonF maskPolygon, qreal hoverScale, QPointF bgOffset,
-    QWidget *parent)
+    QRect geometry, QPolygonF maskPolygon, qreal hoverScale, QPointF centroid,
+    QPointF bgOffset, QWidget *parent)
     : QPushButton(parent), inactiveGeometry(geometry),
-      inactiveMask(maskPolygon), hoverScale(hoverScale), bgOffset(bgOffset),
-      inactiveBgColor(0x202020), activeBgColor(0x101010), hovering(false),
+      inactiveMask(maskPolygon), hoverScale(hoverScale), centroid(centroid),
+      bgOffset(bgOffset), inactiveBgColor(0x20, 0x20, 0x20, 0x80),
+      activeBgColor(0x10, 0x10, 0x10, 0x90), hovering(false),
       bgColor(inactiveBgColor), animations(),
       geometryAnimation(this, "geometry"), bgColorAnimation(this, "bgColor") {
     Q_ASSERT(hoverScale > 1.);
@@ -100,13 +101,10 @@ void Button::startAnimation() {
     bgColorAnimation.setStartValue(bgColorAnimation.currentValue());
     if (hovering) {
         raise();
+        QPointF centroidOffset = centroid * (hoverScale - 1.);
         geometryAnimation.setEndValue(QRect(
-            inactiveGeometry.x()
-                - inactiveGeometry.width() * (hoverScale - 1.) / 2.,
-            inactiveGeometry.y()
-                - inactiveGeometry.height() * (hoverScale - 1.) / 2.,
-            inactiveGeometry.width() * hoverScale,
-            inactiveGeometry.height() * hoverScale));
+            (inactiveGeometry.topLeft() - centroidOffset).toPoint(),
+            inactiveGeometry.size() * hoverScale));
         bgColorAnimation.setEndValue(activeBgColor);
     } else {
         lower();

@@ -136,13 +136,15 @@ Panel::Panel(Panel *parent, quint8 tSlot)
       coordinate(parent ? parent->calcRelativeCoordinate(tSlot) : QPoint{0, 0}),
       pSlot(parent ? parent->parentPanel ? parent->pSlot + 6 : tSlot + 1 : 0),
       parentPanel(parent), tSlot(tSlot), childPanels(6, nullptr),
-      borderButtons(6, nullptr), hoverScale(1.3), unitLen(200), gapLen(3) {
+      borderButtons(6, nullptr), hoverScale(1.5), unitLen(200), gapLen(3) {
     // Preconditions
     Q_ASSERT_X(config, __func__, "Global config not initialized");
 
     // Set common window attributes
     setAttribute(Qt::WA_TranslucentBackground);
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    setWindowFlag(Qt::FramelessWindowHint);
+    setWindowFlag(Qt::WindowStaysOnTopHint);
+    setWindowFlag(Qt::NoDropShadowWindowHint);
 
     // Add panel to grid
     panelGrid[coordinate] = this;
@@ -294,6 +296,7 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     qreal minY = *std::min_element(ys.begin(), ys.end());
     qreal maxX = *std::max_element(xs.begin(), xs.end());
     qreal maxY = *std::max_element(ys.begin(), ys.end());
+    QPointF centroid = std::reduce(points.begin(), points.end()) / 3.;
 
     QPolygonF mask(points);
     mask.translate(-minX, -minY);
@@ -301,6 +304,7 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     QRectF geometry(minX, minY, maxX - minX, maxY - minY);
     Button *button = new Button(
         geometry.toRect(), mask, hoverScale,
+        QPointF(centroid - geometry.topLeft()),
         geometry.topLeft() - geometry.toRect().topLeft(), this);
 
     // TEST: Draw an icon

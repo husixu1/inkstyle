@@ -14,6 +14,8 @@ private:
     const QRect inactiveGeometry;
     const QPolygonF inactiveMask;
     const qreal hoverScale;
+    /// @brief The geometry center of the background
+    const QPointF centroid;
     /// @brief For calibrating the sub-pixel position of the background
     const QPointF bgOffset;
     const QColor inactiveBgColor;
@@ -32,8 +34,8 @@ private:
 
 public:
     Button(
-        QRect geometry, QPolygonF mask, qreal hoverScale, QPointF bgOffset,
-        QWidget *parent = nullptr);
+        QRect geometry, QPolygonF mask, qreal hoverScale, QPointF centroid,
+        QPointF bgOffset = QPointF(0, 0), QWidget *parent = nullptr);
 
     const QColor &getBgColor() const;
     void setBgColor(const QColor &newBgColor);
