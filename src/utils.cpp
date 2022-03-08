@@ -5,12 +5,106 @@
 #include <QDebug>
 #include <QProcess>
 #include <QScopeGuard>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
 
-#if _WIN32
-void Utils::pasteToInkscape() {}
-#else
+#if _WIN32 // Windows
+
+#    include <Windows.h>
+#    include <string>
+#    include <tchar.h>
+
+constexpr const UINT CLASSNAME_SIZE = 256;
+
+static HWND findInkscapeWindow() {
+    struct EnumWindowsParam {
+        std::string className;
+        std::string windowName;
+        HWND inkscape = nullptr;
+    } enumWindowsParam;
+
+    // This lambda cannot capture anything, due to windows' CALLBACK
+    // restrictions
+    auto isNotInkscapeWindow = [](HWND window, LPARAM lParam) -> BOOL {
+        EnumWindowsParam *param = (EnumWindowsParam *)lParam;
+        param->inkscape = window;
+
+        // Get class name
+        param->className.clear();
+        param->className.reserve(CLASSNAME_SIZE + 1);
+        GetClassName(window, param->className.data(), CLASSNAME_SIZE);
+
+        // get window name
+        int winNameLen = GetWindowTextLength(window);
+        param->windowName.clear();
+        param->windowName.reserve(winNameLen * 4 + 1);
+        GetWindowText(window, param->windowName.data(), winNameLen * 4 + 1);
+
+        return !(
+            QString(param->className.c_str())
+                .toLower()
+                .contains("gdkwindowtoplevel")
+            && QString(param->windowName.c_str())
+                   .toLower()
+                   .contains("inkscape"));
+    };
+
+    // Test cached window first for performance
+    static HWND cachedInkscapeWindow = nullptr;
+    if (!isNotInkscapeWindow(cachedInkscapeWindow, (LPARAM)&enumWindowsParam))
+        return cachedInkscapeWindow;
+
+    // Try to find
+    bool inkscapeFound =
+        !EnumWindows(isNotInkscapeWindow, (LPARAM)&enumWindowsParam);
+    if (inkscapeFound) {
+        cachedInkscapeWindow = enumWindowsParam.inkscape;
+        return enumWindowsParam.inkscape;
+    }
+    return nullptr;
+}
+
+void Utils::pasteToInkscape() {
+    if (HWND inkscape = findInkscapeWindow(); inkscape) {
+        qDebug() << "Pasting style to" << inkscape;
+
+        // Windows assume that keyboard input goes to the foreground window,
+        // and seems there's not way to send key combinations to a background
+        // window.
+        if (!SetForegroundWindow(inkscape)) {
+            qInfo() << "Cannot bring inkscape window to foreground";
+            return;
+        }
+
+        INPUT inputs[6] = {};
+        ZeroMemory(inputs, sizeof(inputs));
+
+        inputs[0].type = INPUT_KEYBOARD;
+        inputs[0].ki.wVk = VK_CONTROL;
+        inputs[1].type = INPUT_KEYBOARD;
+        inputs[1].ki.wVk = VK_SHIFT;
+        inputs[2].type = INPUT_KEYBOARD;
+        inputs[2].ki.wVk = 0x56;
+
+        inputs[3].type = INPUT_KEYBOARD;
+        inputs[3].ki.wVk = 0x56;
+        inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[4].type = INPUT_KEYBOARD;
+        inputs[4].ki.wVk = VK_SHIFT;
+        inputs[4].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[5].type = INPUT_KEYBOARD;
+        inputs[5].ki.wVk = VK_CONTROL;
+        inputs[5].ki.dwFlags = KEYEVENTF_KEYUP;
+
+        SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+    } else {
+        qInfo() << "Inkscape window not found";
+    }
+}
+
+#else // Linux
+
+#    include <X11/Xlib.h>
+#    include <X11/Xutil.h>
+
 static Window findInkscapeWindow(Display *display) {
     auto isInkscapeWindow = [](Display *display, Window window) -> bool {
         QString wmClass, wmName;
@@ -90,13 +184,12 @@ void Utils::pasteToInkscape() {
         event.state = ControlMask | ShiftMask;
 
         event.type = KeyPress;
-        XSendEvent(display, inkscape, True, None, (XEvent *)&event);
+        XSendEvent(display, inkscape, False, None, (XEvent *)&event);
 
         event.type = KeyRelease;
-        XSendEvent(display, inkscape, True, None, (XEvent *)&event);
+        XSendEvent(display, inkscape, False, None, (XEvent *)&event);
 
         XFlush(display);
-        XSync(display, False);
     } else {
         qInfo() << "Inkscape window not found" << inkscape;
     }
