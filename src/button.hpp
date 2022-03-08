@@ -10,28 +10,6 @@
 class Button : public QPushButton {
     Q_OBJECT
 
-private:
-    const QRect inactiveGeometry;
-    const QPolygonF inactiveMask;
-    const qreal hoverScale;
-    /// @brief The geometry center of the background
-    const QPointF centroid;
-    /// @brief For calibrating the sub-pixel position of the background
-    const QPointF bgOffset;
-    const QColor inactiveBgColor;
-    const QColor activeBgColor;
-
-    QPoint mousePos;
-    bool hovering;
-
-    QColor bgColor;
-    Q_PROPERTY(QColor bgColor READ getBgColor WRITE setBgColor)
-
-    QParallelAnimationGroup animations;
-    QPropertyAnimation geometryAnimation;
-    QPropertyAnimation bgColorAnimation;
-    void startAnimation();
-
 public:
     Button(
         QRect geometry, QPolygonF mask, qreal hoverScale, QPointF centroid,
@@ -53,6 +31,28 @@ protected:
 signals:
     void mouseEnter();
     void mouseLeave();
+
+private:
+    const QRect inactiveGeometry;
+    const QPolygonF inactiveMask;
+    const qreal hoverScale;
+    /// @brief The geometry center of the background
+    const QPointF centroid;
+    /// @brief For calibrating the sub-pixel position of the background
+    const QPointF bgOffset;
+    const QColor inactiveBgColor;
+    const QColor activeBgColor;
+
+    QPoint mousePos;
+    bool hovering;
+
+    QColor bgColor;
+    Q_PROPERTY(QColor bgColor READ getBgColor WRITE setBgColor)
+
+    QParallelAnimationGroup animations;
+    QPropertyAnimation geometryAnimation;
+    QPropertyAnimation bgColorAnimation;
+    void startAnimation();
 };
 
 #endif // BUTTON_H
