@@ -42,4 +42,5 @@ int main(int argc, char *argv[]) try {
     return a.exec();
 } catch (std::exception &e) {
     qCritical() << e.what();
+    return 0;
 }

@@ -85,7 +85,7 @@ private:
     /// @param tSlot The theta-slot that the border-button resides
     /// @return A list of points, which is the vertices of the mask polygon
     /// @note The generated point coordinates are relative to this panel
-    QVector<QPoint> genBorderButtonMask(quint8 tSlot);
+    QVector<QPointF> genBorderButtonMask(quint8 tSlot);
 
 signals:
     void pSlotChanged();
