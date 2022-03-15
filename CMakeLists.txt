@@ -58,8 +58,27 @@ endif()
 configure_file(src/config.hpp.in src/config.hpp)
 
 # DEPENDENCIES ################################################################
+include(ExternalProject)
+
 add_subdirectory(3rdparty/QHotkey)
 add_subdirectory(3rdparty/yaml-cpp)
+
+# requires cargo to build resvg
+find_program(CARGO cargo REQUIRED)
+ExternalProject_Add(
+    resvg PREFIX ${CMAKE_BINARY_DIR}/3rdparty
+    URL ${CMAKE_SOURCE_DIR}/3rdparty/resvg
+    CONFIGURE_COMMAND cargo fetch --locked
+    BUILD_COMMAND cargo build --workspace --frozen --release --all-features
+    BUILD_IN_SOURCE ON
+    INSTALL_COMMAND "")
+ExternalProject_Get_property(resvg SOURCE_DIR)
+message("SOURCE DIR IS ${SOURCE_DIR}")
+set(resvg_INCLUDE_DIRS ${SOURCE_DIR}/c-api)
+set(resvg_LIBRARY_DIRS ${SOURCE_DIR}/target/release)
+set(resvg_LIBRARIES -lresvg)
+
+add_dependencies(${EXE_NAME} resvg qhotkey yaml-cpp)
 
 if(UNIX AND NOT APPLE)
     # Require x11 library to send keys to inkscape
@@ -70,9 +89,14 @@ endif()
 target_include_directories(
     ${EXE_NAME} PRIVATE
     ${CMAKE_BINARY_DIR}/src
-    ${x11_INCLUDE_DIRS})
+    ${x11_INCLUDE_DIRS}
+    ${resvg_INCLUDE_DIRS})
+
+target_link_directories(
+    ${EXE_NAME} PRIVATE
+    ${resvg_LIBRARY_DIRS})
 
 target_link_libraries(
     ${EXE_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Svg
-    qhotkey yaml-cpp ${x11_LDFLAGS})
+    qhotkey yaml-cpp ${x11_LDFLAGS} ${resvg_LIBRARIES})

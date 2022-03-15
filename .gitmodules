@@ -4,3 +4,6 @@
 [submodule "3rdparty/yaml-cpp"]
 	path = 3rdparty/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp
+[submodule "3rdparty/resvg"]
+	path = 3rdparty/resvg
+	url = https://github.com/RazrFalcon/resvg
