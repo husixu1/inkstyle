@@ -11,11 +11,11 @@
 #include <QVector>
 #include <yaml-cpp/yaml.h>
 
-class ConfigManager : public QObject {
+class Config : public QObject {
     Q_OBJECT
 
 public:
-    explicit ConfigManager(const QString &file, QObject *parent = nullptr);
+    explicit Config(const QString &file, QObject *parent = nullptr);
 
     QColor panelBgColor;
     QColor buttonBgColorInactive;
@@ -28,7 +28,7 @@ public:
 
     struct ButtonInfo {
         /// @brief Associated ConfigManager
-        const ConfigManager &config;
+        const Config &config;
 
         /// @brief This is a static svg for copy-pasting
         const QByteArray styleSvg;

@@ -29,10 +29,9 @@ uint qHash(const QPoint &point, uint seed = 0) {
 
 QPixmap Panel::drawIcon(
     quint8 tSlot, quint8 rSlot, quint8 subSlot,
-    const ConfigManager::ButtonInfo &info) const {
+    const Config::ButtonInfo &info) const {
 
-    ConfigManager::Slot slot =
-        ConfigManager::calcSlot(pSlot, tSlot, rSlot, subSlot);
+    Config::Slot slot = Config::calcSlot(pSlot, tSlot, rSlot, subSlot);
 
     // Reuse cached icon for speedup
     if (cache.styleIcons.contains(slot)
@@ -62,14 +61,13 @@ QPixmap Panel::drawIcon(
 
 QByteArray Panel::genIconSvg(
     quint8 tSlot, quint8 rSlot, quint8 subSlot,
-    const ConfigManager::ButtonInfo &info) const {
+    const Config::ButtonInfo &info) const {
     using C::R60, C::R45;
     namespace CGK = C::C::G::K;      // button config Keys
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
 
-    ConfigManager::Slot slot =
-        ConfigManager::calcSlot(pSlot, tSlot, rSlot, subSlot);
+    Config::Slot slot = Config::calcSlot(pSlot, tSlot, rSlot, subSlot);
     Button *button = styleButtons[slot].get();
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
     QPointF centroid = button->centroid * button->hoverScale;
@@ -298,8 +296,7 @@ QVector<QPointF> Panel::genBorderButtonMask(quint8 tSlot) {
         }};
 }
 
-Panel::Panel(
-    Panel *parent, quint8 tSlot, const QSharedPointer<ConfigManager> &config)
+Panel::Panel(Panel *parent, quint8 tSlot, const QSharedPointer<Config> &config)
     : QWidget(nullptr), config(parent ? parent->config : config),
       _pGrid(parent ? parent->_pGrid : QSharedPointer<PGrid>(new PGrid)),
       panelGrid(*_pGrid),
@@ -460,8 +457,7 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     mask.translate(-geometry.topLeft());
 
     // Add the button to styleButtons
-    ConfigManager::Slot slot =
-        ConfigManager::calcSlot(pSlot, tSlot, rSlot, subSlot);
+    Config::Slot slot = Config::calcSlot(pSlot, tSlot, rSlot, subSlot);
     QSharedPointer<Button> button(
         new Button(
             geometry.toRect(), mask, hoverScale, centroid - geometry.topLeft(),
@@ -635,7 +631,7 @@ void Panel::delPanel(quint8 tSlot) {
     childPanels[tSlot] = nullptr;
 }
 
-void Panel::copyStyle(ConfigManager::Slot slot) {
+void Panel::copyStyle(Config::Slot slot) {
     if (config->buttons.contains(slot)) {
         // Copy style associated with slot to clipboard
         QMimeData *styleSvg = new QMimeData;

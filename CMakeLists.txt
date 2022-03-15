@@ -26,16 +26,16 @@ set(PROJECT_SOURCES
     src/hiddenbutton.cpp
     src/main.cpp
     src/panel.cpp
-    src/configmanager.cpp
+    src/config.cpp
     src/utils.cpp
     # Headers
     src/button.hpp
     src/hiddenbutton.hpp
     src/panel.hpp
-    src/configmanager.hpp
+    src/config.hpp
     src/constants.hpp
     src/utils.hpp
-    src/config.hpp.in
+    src/global.hpp.in
     #Resources
     res.qrc)
 
@@ -59,7 +59,7 @@ if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(${EXE_NAME})
 endif()
 
-configure_file(src/config.hpp.in src/config.hpp)
+configure_file(src/global.hpp.in src/global.hpp)
 
 # DEPENDENCIES ################################################################
 include(ExternalProject)

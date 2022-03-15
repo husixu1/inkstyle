@@ -1,7 +1,7 @@
 #ifndef BUTTON_H
 #define BUTTON_H
 
-#include "configmanager.hpp"
+#include "config.hpp"
 
 #include <QEvent>
 #include <QParallelAnimationGroup>
@@ -17,7 +17,7 @@ public:
     Button(
         QRectF geometry, QPolygonF mask, qreal hoverScale, QPointF centroid,
         QPointF bgOffset = QPointF(0, 0), QWidget *parent = nullptr,
-        ConfigManager *config = nullptr);
+        Config *config = nullptr);
 
     const QColor &getBgColor() const;
     void setBgColor(const QColor &newBgColor);

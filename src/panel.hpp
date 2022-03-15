@@ -2,7 +2,7 @@
 #define PANEL_H
 
 #include "button.hpp"
-#include "configmanager.hpp"
+#include "config.hpp"
 #include "hiddenbutton.hpp"
 
 #include <QPushButton>
@@ -20,7 +20,7 @@ class Panel : public QWidget {
 public:
     Panel(
         Panel *parent = nullptr, quint8 tSlot = 0,
-        const QSharedPointer<ConfigManager> &config = nullptr);
+        const QSharedPointer<Config> &config = nullptr);
     virtual ~Panel() override;
 
 protected:
@@ -87,7 +87,7 @@ private:
 
     QPixmap drawIcon(
         quint8 tSlot, quint8 rSlot, quint8 subSlot,
-        const ConfigManager::ButtonInfo &info) const;
+        const Config::ButtonInfo &info) const;
 
     /// @brief Generate preset icon svg for representing showing on buttons
     /// @details This function should be called to generate an icon when
@@ -96,7 +96,7 @@ private:
     /// @return The icon svg stored in a byte array
     QByteArray genIconSvg(
         quint8 tSlot, quint8 rSlot, quint8 subSlot,
-        const ConfigManager::ButtonInfo &info) const;
+        const Config::ButtonInfo &info) const;
 
 signals:
     void pSlotChanged();
@@ -104,11 +104,11 @@ signals:
 private slots:
     void addPanel(quint8 tSlot);
     void delPanel(quint8 tSlot);
-    void copyStyle(ConfigManager::Slot slot);
+    void copyStyle(Config::Slot slot);
 
 private:
     /// @brief A config that is shared across all panels
-    QSharedPointer<ConfigManager> config;
+    QSharedPointer<Config> config;
 
     /// @brief The grid system to track all panels' locations
     /// @details
@@ -153,7 +153,7 @@ private:
     QVector<QSharedPointer<Panel>> childPanels;
 
     /// @brief Style buttons, mapped to corresponding slot
-    QHash<ConfigManager::Slot, QSharedPointer<Button>> styleButtons;
+    QHash<Config::Slot, QSharedPointer<Button>> styleButtons;
 
     /// @brief Border buttons of this panel, for expanding children panels
     QVector<QSharedPointer<HiddenButton>> borderButtons;
@@ -177,7 +177,7 @@ private:
         /// @brief Reuse rendered icons if config not changed
         /// @details Stores `{slot, {buttonInfo-hash, icon}}`. The hash is used
         /// test the validity of the buttonInfo associated with `slot`.
-        QHash<ConfigManager::Slot, QPair<QByteArray, QPixmap>> styleIcons;
+        QHash<Config::Slot, QPair<QByteArray, QPixmap>> styleIcons;
     } cache;
 };
 #endif // PANEL_H

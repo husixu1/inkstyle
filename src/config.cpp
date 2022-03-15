@@ -1,4 +1,4 @@
-#include "configmanager.hpp"
+#include "config.hpp"
 
 #include "constants.hpp"
 
@@ -46,12 +46,12 @@ struct convert<QColor> {
 };
 } // namespace YAML
 
-void ConfigManager::parseConfig(const YAML::Node &config) {
+void Config::parseConfig(const YAML::Node &config) {
     parseGlobalConfig(config);
     parseButtonsConfig(config);
 }
 
-void ConfigManager::parseGlobalConfig(const YAML::Node &config) {
+void Config::parseGlobalConfig(const YAML::Node &config) {
     namespace CC = C::C;
     namespace GK = C::C::G::K;
     namespace DIS = C::C::G::V::DIS;
@@ -87,7 +87,7 @@ void ConfigManager::parseGlobalConfig(const YAML::Node &config) {
     }
 }
 
-void ConfigManager::parseButtonsConfig(const YAML::Node &config) {
+void Config::parseButtonsConfig(const YAML::Node &config) {
     namespace CC = C::C;
     namespace BK = C::C::B::K;
 
@@ -171,8 +171,7 @@ void ConfigManager::parseButtonsConfig(const YAML::Node &config) {
     }
 }
 
-ConfigManager::ConfigManager(const QString &file, QObject *parent)
-    : QObject(parent) {
+Config::Config(const QString &file, QObject *parent) : QObject(parent) {
 
     // Parse default config
     qDebug("Loading default config.");
@@ -191,13 +190,13 @@ ConfigManager::ConfigManager(const QString &file, QObject *parent)
     }
 }
 
-ConfigManager::Slot ConfigManager::calcSlot(
-    quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+Config::Slot
+Config::calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     return quint32(pSlot) << 24 | quint32(tSlot) << 16 | quint32(rSlot) << 8
            | quint32(subSlot);
 }
 
-QByteArray ConfigManager::ButtonInfo::genHash() const {
+QByteArray Config::ButtonInfo::genHash() const {
     QCryptographicHash hash(QCryptographicHash::Md5);
     hash.addData(QString::number(reinterpret_cast<intptr_t>(&config)).toUtf8());
     hash.addData(styleSvg);
@@ -207,6 +206,6 @@ QByteArray ConfigManager::ButtonInfo::genHash() const {
     return hash.result();
 }
 
-bool ConfigManager::ButtonInfo::validateHash(const QByteArray &hash) const {
+bool Config::ButtonInfo::validateHash(const QByteArray &hash) const {
     return genHash() == hash;
 }

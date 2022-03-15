@@ -1,4 +1,4 @@
-#include "configmanager.hpp"
+#include "global.hpp"
 #include "panel.hpp"
 #include "utils.hpp"
 
@@ -8,8 +8,7 @@
 
 int main(int argc, char *argv[]) try {
     // Read config
-    QSharedPointer<ConfigManager> config(
-        new ConfigManager("res/inkstyle.yaml"));
+    QSharedPointer<Config> config(new Config("res/inkstyle.yaml"));
 
     QApplication a(argc, argv);
 

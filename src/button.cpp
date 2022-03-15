@@ -11,7 +11,7 @@
 
 Button::Button(
     QRectF geometry, QPolygonF maskPolygon, qreal hoverScale, QPointF centroid,
-    QPointF bgOffset, QWidget *parent, ConfigManager *config)
+    QPointF bgOffset, QWidget *parent, Config *config)
     : QPushButton(parent), inactiveGeometry(geometry),
       inactiveMask(maskPolygon), hoverScale(hoverScale), centroid(centroid),
       bgOffset(bgOffset),
