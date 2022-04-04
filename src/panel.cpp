@@ -550,7 +550,8 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     QSharedPointer<Button> button(
         new Button(
             geometry.toRect(), mask, hoverScale, centroid - geometry.topLeft(),
-            geometry.topLeft() - geometry.toRect().topLeft(), this),
+            geometry.topLeft() - geometry.toRect().topLeft(), this,
+            config->buttonBgColorInactive, config->buttonBgColorActive),
         [](Button *b) { b->deleteLater(); });
     styleButtons.insert(slot, button);
 

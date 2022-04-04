@@ -11,14 +11,13 @@
 
 Button::Button(
     QRectF geometry, QPolygonF maskPolygon, qreal hoverScale, QPointF centroid,
-    QPointF bgOffset, QWidget *parent, Config *config)
+    QPointF bgOffset, QWidget *parent, QColor inactiveColor, QColor activeColor)
     : QPushButton(parent), inactiveGeometry(geometry),
       inactiveMask(maskPolygon), hoverScale(hoverScale), centroid(centroid),
-      bgOffset(bgOffset),
-      inactiveBgColor(config ? config->buttonBgColorInactive : C::DBC::off),
-      activeBgColor(config ? config->buttonBgColorActive : C::DBC::on),
-      hovering(false), bgColor(inactiveBgColor), animations(),
-      geometryAnimation(this, "geometry"), bgColorAnimation(this, "bgColor") {
+      bgOffset(bgOffset), inactiveBgColor(inactiveColor),
+      activeBgColor(activeColor), hovering(false), bgColor(inactiveBgColor),
+      animations(), geometryAnimation(this, "geometry"),
+      bgColorAnimation(this, "bgColor") {
     Q_ASSERT(hoverScale > 1.);
 
     setGeometry(geometry.toRect());
