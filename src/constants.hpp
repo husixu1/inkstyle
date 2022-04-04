@@ -19,7 +19,17 @@ constexpr double R60 = 60. * M_PI / 180.;
 /// @brief Number of icons to cache
 constexpr size_t iconCacheSize = 1000;
 
+/// @brief MIME type to be used by the clipboard
 cccp styleMimeType = "image/x-inkscape-svg";
+
+/// @brief Icon drawing-related constants
+namespace IconDrawing {
+    /// @brief Checkerboard grid width
+    constexpr qreal checkerboardWidth = 5;
+    /// @brief Outer stroke width of the icon
+    constexpr qreal strokeWidth = 5;
+} // namespace IconDrawing
+namespace IC = IconDrawing;
 
 /// @brief Default button colors when no config file is provided
 namespace DefaultButtonColors {

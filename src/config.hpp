@@ -46,6 +46,8 @@ public:
         QSet<QString> defIds;
 
         bool operator==(const ButtonInfo &other) const;
+        /// @brief Reset all members;
+        void clear();
     };
 
     static Slot

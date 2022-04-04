@@ -16,8 +16,8 @@ class Button : public QPushButton {
 public:
     Button(
         QRectF geometry, QPolygonF mask, qreal hoverScale, QPointF centroid,
-        QPointF bgOffset = QPointF(0, 0), QWidget *parent = nullptr,
-        QColor inactiveColor = C::DBC::off, QColor activeColor = C::DBC::on);
+        QWidget *parent = nullptr, QColor inactiveColor = C::DBC::off,
+        QColor activeColor = C::DBC::on);
 
     const QColor &getBgColor() const;
     void setBgColor(const QColor &newBgColor);

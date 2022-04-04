@@ -290,6 +290,13 @@ bool Config::ButtonInfo::operator==(const Config::ButtonInfo &other) const {
            && styles == other.styles && defIds == other.defIds;
 }
 
+void Config::ButtonInfo::clear() {
+    styleSvg.clear();
+    userIconSvg.clear();
+    styles.clear();
+    defIds.clear();
+}
+
 size_t qHash(const Config::StylesList &styles, size_t seed) {
     size_t hash = ~(size_t)0;
     for (auto itr = styles.begin(); itr != styles.end(); ++itr)

@@ -27,6 +27,314 @@ uint qHash(const QPoint &point, uint seed = 0) {
     return qHash(QPair<int, int>(point.x(), point.y()), seed);
 }
 
+static QString _genUnkownStyleSvg(const QSizeF &size, qreal baselineHeight) {
+    return QString(R"(<text x="%1" y="%2" fill="#fff" style="%3">?</text>)")
+        .arg(size.width() * 0.5)
+        .arg(baselineHeight)
+        .arg(QString("font-size:%1;text-anchor:middle")
+                 .arg(size.height() * 0.5));
+}
+
+static QString _genSvgDefs(const Config &conf, const Config::ButtonInfo &info) {
+    QString svgDefs;
+    for (const QString &defId : info.defIds)
+        if (conf.svgDefs.contains(defId))
+            svgDefs.append(conf.svgDefs[defId]);
+    // Replace non-displayable attributes so that markers can be displayed.
+    static QRegularExpression _ctx_re(R"(\b(context-stroke|context-fill)\b)");
+    svgDefs.replace(_ctx_re, "#fff");
+    return svgDefs;
+}
+
+static QString _genColorSvg(
+    const Config &config, const Config::ButtonInfo &info, const QPointF &bl,
+    const QPointF &tr, qreal radius) {
+    namespace IC = C::IC;
+    namespace CBK = C::C::B::K;
+    namespace DIS = C::C::G::V::DIS;
+    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+
+    // Set geometry for the svg element
+    QString element;
+    if (config.defaultIconStyle == DIS::circle) {
+        element =
+            QString(R"(<path d="M %1 %2 A %3 %3 0 0 0 %4 %5" style="{S}"/>)")
+                .arg(tr.x())
+                .arg(tr.y())
+                .arg(radius)
+                .arg(bl.x())
+                .arg(bl.y());
+    } else if (config.defaultIconStyle == DIS::square) {
+        element = QString(R"(<path d="M %1 %2 H %3 V %4" style="{S}"/>)")
+                      .arg(tr.x())
+                      .arg(tr.y())
+                      .arg(bl.x())
+                      .arg(bl.y());
+    }
+
+    // Set style for color template
+    QStringList styleString;
+    // Set some defaults
+    if (!has(CBK::fill))
+        styleString.append("fill:none");
+    if (has(CBK::stroke))
+        styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+    for (const char *key : {CBK::fill, CBK::stroke, CBK::strokeDashArray})
+        if (has(key))
+            styleString.append(key + (":" + info.styles[key]));
+    return element.replace("{S}", styleString.join(";"));
+}
+
+static QPair<QString, QString> _genOpacitySvg(
+    const Config &config, const Config::ButtonInfo &info, const QPointF &bl,
+    const QPointF &tr, qreal radius) {
+    namespace IC = C::IC;
+    namespace CBK = C::C::B::K;
+    namespace DIS = C::C::G::V::DIS;
+    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+
+    QString checkerboard =
+        QString(R"(<pattern id="__checkerboard" patternUnits="userSpaceOnUse")"
+                R"( width="%1" height="%1">)"
+                R"(  <rect x="0" y="0" width="%2" height="%2" fill="#777"/>)"
+                R"(  <rect x="0" y="%2" width="%2" height="%2" fill="#fff"/>)"
+                R"(  <rect x="%2" y="%2" width="%2" height="%2" fill="#777"/>)"
+                R"(  <rect x="%2" y="0" width="%2" height="%2" fill="#fff"/>)"
+                R"(</pattern>)")
+            .arg(2 * IC::checkerboardWidth)
+            .arg(IC::checkerboardWidth);
+    QString svgDefs = checkerboard;
+
+    QString background, element, svgContent;
+    if (config.defaultIconStyle == DIS::circle) {
+        background = element =
+            QString(R"(<path d="M %1 %2 A %3 %3 0 0 0 %4 %5" style="{S}"/>)")
+                .arg(bl.x())
+                .arg(bl.y())
+                .arg(radius)
+                .arg(tr.x())
+                .arg(tr.y());
+    } else if (config.defaultIconStyle == DIS::square) {
+        background = element =
+            QString(R"(<path d="M %1 %2 H %3 V %4" style="{S}"/>)")
+                .arg(bl.x())
+                .arg(bl.y())
+                .arg(tr.x())
+                .arg(tr.y());
+    }
+
+    // Set style for color template
+    QStringList styleString;
+    QStringList bgStyleString;
+    // Set some defaults
+    if (!has(CBK::fillOpacity)) {
+        styleString.append("fill-opacity:0");
+        bgStyleString.append("fill-opacity:0");
+    } else {
+        if (!has(CBK::fill))
+            styleString.append("fill:#fff");
+        bgStyleString.append("fill:url(#__checkerboard)");
+    }
+
+    if (has(CBK::strokeOpacity)) {
+        if (!has(CBK::stroke))
+            styleString.append("stroke:#fff");
+        styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+        bgStyleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+        bgStyleString.append("stroke:url(#__checkerboard)");
+    }
+
+    background.replace("{S}", bgStyleString.join(';'));
+    svgContent += background;
+
+    for (const char *key :
+         {CBK::fill, CBK::stroke, CBK::stroke, CBK::fillOpacity,
+          CBK::strokeOpacity})
+        if (has(key))
+            styleString.append(key + (":" + info.styles[key]));
+    svgContent += element.replace("{S}", styleString.join(';'));
+    return {svgDefs, svgContent};
+}
+
+static QString _genStrokeWidthSvg(
+    const Config &config, const Config::ButtonInfo &info, const QPointF &stl,
+    const QPointF &str, qreal sradius) {
+    namespace IC = C::IC;
+    namespace CBK = C::C::B::K;
+    namespace DIS = C::C::G::V::DIS;
+    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+
+    QString element;
+    if (config.defaultIconStyle == DIS::circle) {
+        element =
+            QString(R"(<path d="M %1 %2 A %3 %3 0 0 0 %4 %5" style="{S}"/>)")
+                .arg(str.x())
+                .arg(str.y())
+                .arg(sradius)
+                .arg(stl.x())
+                .arg(stl.y());
+    } else if (config.defaultIconStyle == DIS::square) {
+        element = QString(R"(<path d="M %1 %2 H %3" style="{S}"/>)")
+                      .arg(str.x())
+                      .arg(str.y())
+                      .arg(stl.x())
+                      .arg(stl.y());
+    }
+
+    QStringList styleString;
+    styleString.append("fill-opacity:0");
+    styleString.append(
+        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles[CBK::stroke])
+                         : "stroke:#fff");
+    styleString.append(
+        QString("stroke-width:%1").arg(info.styles[CBK::strokeWidth]));
+    return element.replace("{S}", styleString.join(';'));
+}
+
+static QString _genMarkerSvg(
+    const Config::ButtonInfo &info, const QPointF &mbl, const QPointF &mbr) {
+    namespace CBK = C::C::B::K;
+    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+
+    QString element = QString(R"(<path d="M %1 %2 H %3" style="{S}"/>)")
+                          .arg(mbl.x())
+                          .arg(mbl.y())
+                          .arg(mbr.x());
+    QStringList styleString;
+    styleString.append("stroke-width:2");
+    styleString.append(
+        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles[CBK::stroke])
+                         : "stroke:#fff");
+    for (const char *key : {CBK::markerStart, CBK::markerEnd, CBK::markerMid})
+        if (has(key))
+            styleString.append(key + (":" + info.styles[key]));
+    return element.replace("{S}", styleString.join(';'));
+}
+
+static QString _genFontSvg(
+    const Config &config, const Config::ButtonInfo &info, const QSizeF &size,
+    qreal baselineHeight) {
+    namespace CBK = C::C::B::K;
+    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+
+    QString element =
+        QString(R"(<text x="%1" y="%2" fill="#fff" style="{S}">%3</text>)")
+            .arg(size.width() * 0.5)
+            .arg(baselineHeight)
+            .arg(config.defaultIconText);
+
+    QStringList styleString;
+
+    // Set default fsize
+    styleString.append(QString("font-size:%1").arg(size.height() * 0.5));
+    // Correctly position the text
+    styleString.append("text-anchor:middle");
+    styleString.append("fill:#fff");
+
+    for (const char *key : {CBK::fontFamily, CBK::fontStyle})
+        if (has(key))
+            styleString.append(key + (":" + info.styles[key]));
+    return element.replace("{S}", styleString.join(';'));
+}
+
+static QString _composeSvg(
+    const QSizeF &size, const QString &svgDefs, const QString &svgContent) {
+    return QString(R"(<svg width="%1" height="%2" version="1.1")"
+                   R"( viewBox="0 0 %1 %2" xmlns="http://www.w3.org/2000/svg">)"
+                   R"( <defs>%3</defs>%4</svg>)")
+        .arg(size.width())
+        .arg(size.height())
+        .arg(svgDefs, svgContent);
+}
+
+static QByteArray _genStyleButtonSvg(
+    Button *button, const Config &config, const Config::ButtonInfo &info,
+    bool orientation) {
+    using C::R30, C::R60, C::R45;
+    namespace CGK = C::C::G::K;      // button config Keys
+    namespace CBK = C::C::B::K;      // button config Keys
+    namespace DIS = C::C::G::V::DIS; // default icon style
+
+    QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
+    QPointF centroid = button->centroid * button->hoverScale;
+
+    // Return custom icon if defined
+    if (info.userIconSvg.size() > 0)
+        return info.userIconSvg;
+
+    QString svgDefs;
+    QString svgContent;
+
+    // 0. Generate a indicator if this is a non-standard style
+    if (info.styles.empty())
+        svgContent += _genUnkownStyleSvg(
+            size, size.height() * (orientation ? 0.5 : 0.85));
+
+    // 1.1 Calculate common anchor points for subsequent drawing
+    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    // color/stroke-width/marker indicator's top/bottom-left/right point
+    QPointF tr, bl, str, stl, mbl, mbr;
+    // color/gradient indicator's radius
+    qreal radius = size.height() / 3. - C::IC::strokeWidth / 2.;
+    // stroke-width/marker indicator's radius
+    qreal sradius = size.height() * 11. / 24., mradius = sradius;
+    qreal invert = orientation ? -1 : 1;
+    // qreal mradius = size.height() * 3. / 8.;
+    if (config.defaultIconStyle == DIS::circle) {
+        tr = centroid + QPointF(radius * qCos(R60), -radius * qSin(R60));
+        bl = centroid + QPointF(-radius * qCos(R60), radius * qSin(R60));
+        str = centroid
+              + QPointF(sradius * qCos(R30), -sradius * qSin(R30)) * invert;
+        stl = centroid
+              + QPointF(-sradius * qCos(R30), -sradius * qSin(R30)) * invert;
+        mbl = centroid
+              + QPointF(-mradius * qCos(R30), mradius * qSin(R30) * invert);
+        mbr = centroid
+              + QPointF(mradius * qCos(R30), mradius * qSin(R30) * invert);
+    } else if (config.defaultIconStyle == DIS::square) {
+        tr = centroid + QPointF(radius * qCos(R45), -radius * qSin(R45));
+        bl = centroid + QPointF(-radius * qCos(R45), radius * qSin(R45));
+        str = centroid
+              + QPointF(sradius * qCos(R45), -sradius * qSin(R45)) * invert;
+        stl = centroid
+              + QPointF(-sradius * qCos(R45), -sradius * qSin(R45)) * invert;
+        mbl = centroid
+              + QPointF(-mradius * qCos(R30), mradius * qSin(R30) * invert);
+        mbr = centroid
+              + QPointF(mradius * qCos(R30), mradius * qSin(R30) * invert);
+    };
+
+    // 1.2 Add necessary definitions
+    svgDefs += _genSvgDefs(config, info);
+
+    // 2. Draw the fill/stroke color/style indicator
+    if (has(CBK::fill) || has(CBK::stroke) || has(CBK::strokeDashArray))
+        svgContent += _genColorSvg(config, info, bl, tr, radius);
+
+    // 3. Draw the stroke/fill opacity indicator
+    if (has(CBK::strokeOpacity) || has(CBK::fillOpacity)) {
+        auto [defs, content] = _genOpacitySvg(config, info, bl, tr, radius);
+        svgDefs += defs;
+        svgContent += content;
+    }
+
+    // 4. Draw stroke-width indicator
+    if (has(CBK::strokeWidth))
+        svgContent += _genStrokeWidthSvg(config, info, stl, str, sradius);
+
+    // 5. Draw marker start/end/mid indicator
+    if (has(CBK::markerStart) || has(CBK::markerMid) || has(CBK::markerEnd))
+        svgContent += _genMarkerSvg(info, mbl, mbr);
+
+    // 6. Draw font-style indicator
+    if (has(CBK::fontFamily) || has(CBK::fontStyle))
+        svgContent += _genFontSvg(
+            config, info, size, size.height() * (orientation ? 0.5 : 0.85));
+
+    // Compose final icon
+    return _composeSvg(size, svgDefs, svgContent).toUtf8();
+}
+
 QPixmap Panel::drawStyleButtonIcon(
     quint8 tSlot, quint8 rSlot, quint8 subSlot,
     const Config::ButtonInfo &info) const {
@@ -60,7 +368,9 @@ QPixmap Panel::drawStyleButtonIcon(
             resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
     }
 
-    QByteArray iconSvg = genStyleButtonIconSvg(tSlot, rSlot, subSlot, info);
+    // true = pointing up, false = pointing down
+    bool orientation = (tSlot + subSlot) % 2;
+    QByteArray iconSvg = _genStyleButtonSvg(button, *config, info, orientation);
     ResvgRenderer renderer(iconSvg, *resvgOptions);
     if (!renderer.isValid()) {
         qCritical(
@@ -76,283 +386,89 @@ QPixmap Panel::drawStyleButtonIcon(
     return *pixmap;
 }
 
-QByteArray Panel::genStyleButtonIconSvg(
-    quint8 tSlot, quint8 rSlot, quint8 subSlot,
-    const Config::ButtonInfo &info) const {
+static QByteArray genCentralButtonSvg(
+    Button *button, const Config &config, const Config::ButtonInfo &info) {
     using C::R30, C::R60, C::R45;
     namespace CGK = C::C::G::K;      // button config Keys
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
 
-    Config::Slot slot = Config::calcSlot(pSlot, tSlot, rSlot, subSlot);
-    Button *button = styleButtons[slot].get();
+    // Button *button = styleButtons[slot].get();
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
     QPointF centroid = button->centroid * button->hoverScale;
-
-    // true = pointing up, false = pointing down
-    bool orientation = (tSlot + subSlot) % 2;
-
-    // Return custom icon if defined
-    if (info.userIconSvg.size() > 0)
-        return info.userIconSvg;
 
     QString svgDefs;
     QString svgContent;
 
     // 0. Generate a indicator if this is a non-standard style
-    {
-        if (info.styles.empty()) {
-            svgContent +=
-                QString(
-                    R"(<text x="%1" y="%2" fill="#fff" style="%3">?</text>)")
-                    .arg(size.width() * 0.5)
-                    .arg(size.height() * (orientation ? 0.5 : 0.85))
-                    .arg(QString("font-size:%1;text-anchor:middle")
-                             .arg(size.height() * 0.5));
-        }
-    }
+    if (info.styles.empty())
+        svgContent += _genUnkownStyleSvg(size, size.height() * 0.675);
 
     // 1.1 Calculate common anchor points for subsequent drawing
     auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
-    constexpr qreal strokeWidth = 5;       // Outer stroke width
-    constexpr qreal checkerboardWidth = 5; // Checkerboard grid width
     // color/stroke-width/marker indicator's top/bottom-left/right point
     QPointF tr, bl, str, stl, mbl, mbr;
     // color/gradient indicator's radius
-    qreal radius = size.height() / 3. - strokeWidth / 2.;
+    qreal radius = size.height() / 3. - C::IC::strokeWidth / 2.;
     // stroke-width/marker indicator's radius
     qreal sradius = size.height() * 11. / 24., mradius = sradius;
-    qreal invert = orientation ? -1 : 1;
     // qreal mradius = size.height() * 3. / 8.;
-    if (config->defaultIconStyle == DIS::circle) {
+    if (config.defaultIconStyle == DIS::circle) {
         tr = centroid + QPointF(radius * qCos(R60), -radius * qSin(R60));
         bl = centroid + QPointF(-radius * qCos(R60), radius * qSin(R60));
-        str = centroid
-              + QPointF(sradius * qCos(R30), -sradius * qSin(R30)) * invert;
-        stl = centroid
-              + QPointF(-sradius * qCos(R30), -sradius * qSin(R30)) * invert;
-        mbl = centroid
-              + QPointF(-mradius * qCos(R30), mradius * qSin(R30) * invert);
-        mbr = centroid
-              + QPointF(mradius * qCos(R30), mradius * qSin(R30) * invert);
-    } else if (config->defaultIconStyle == DIS::square) {
+        str = centroid + QPointF(sradius * qCos(R30), -sradius * qSin(R30));
+        stl = centroid + QPointF(-sradius * qCos(R30), -sradius * qSin(R30));
+        mbl = centroid + QPointF(-mradius * qCos(R30), mradius * qSin(R30));
+        mbr = centroid + QPointF(mradius * qCos(R30), mradius * qSin(R30));
+    } else if (config.defaultIconStyle == DIS::square) {
         tr = centroid + QPointF(radius * qCos(R45), -radius * qSin(R45));
         bl = centroid + QPointF(-radius * qCos(R45), radius * qSin(R45));
-        str = centroid
-              + QPointF(sradius * qCos(R45), -sradius * qSin(R45)) * invert;
-        stl = centroid
-              + QPointF(-sradius * qCos(R45), -sradius * qSin(R45)) * invert;
-        mbl = centroid
-              + QPointF(-mradius * qCos(R30), mradius * qSin(R30) * invert);
-        mbr = centroid
-              + QPointF(mradius * qCos(R30), mradius * qSin(R30) * invert);
+        str = centroid + QPointF(sradius * qCos(R45), -sradius * qSin(R45));
+        stl = centroid + QPointF(-sradius * qCos(R45), -sradius * qSin(R45));
+        mbl = centroid + QPointF(-mradius * qCos(R30), mradius * qSin(R30));
+        mbr = centroid + QPointF(mradius * qCos(R30), mradius * qSin(R30));
     };
 
     // 1.2 Add necessary definitions
-    for (const QString &defId : info.defIds)
-        if (config->svgDefs.contains(defId))
-            svgDefs.append(config->svgDefs[defId]);
-    // Replace non-displayable attributes so that markers can be displayed.
-    static QRegularExpression _ctx_re(R"(\b(context-stroke|context-fill)\b)");
-    svgDefs.replace(_ctx_re, "#fff");
+    svgDefs += _genSvgDefs(config, info);
 
     // 2. Draw the fill/stroke color/style indicator
-    if (has(CBK::fill) || has(CBK::stroke) || has(CBK::strokeDashArray)) {
-        // Set geometry for the svg element
-        QString element;
-        if (config->defaultIconStyle == DIS::circle) {
-            element =
-                QString(
-                    R"(<path d="M %1 %2 A %3 %3 0 0 0 %4 %5" style="{S}"/>)")
-                    .arg(tr.x())
-                    .arg(tr.y())
-                    .arg(radius)
-                    .arg(bl.x())
-                    .arg(bl.y());
-        } else if (config->defaultIconStyle == DIS::square) {
-            element = QString(R"(<path d="M %1 %2 H %3 V %4" style="{S}"/>)")
-                          .arg(tr.x())
-                          .arg(tr.y())
-                          .arg(bl.x())
-                          .arg(bl.y());
-        }
-
-        // Set style for color template
-        QStringList styleString;
-        // Set some defaults
-        if (!has(CBK::fill))
-            styleString.append("fill:none");
-        if (has(CBK::stroke))
-            styleString.append(QString("stroke-width:%1").arg(strokeWidth));
-        for (const char *key : {CBK::fill, CBK::stroke, CBK::strokeDashArray})
-            if (has(key))
-                styleString.append(key + (":" + info.styles[key]));
-        element.replace("{S}", styleString.join(";"));
-        svgContent += element;
-    }
+    if (has(CBK::fill) || has(CBK::stroke) || has(CBK::strokeDashArray))
+        svgContent += _genColorSvg(config, info, bl, tr, radius);
 
     // 3. Draw the stroke/fill opacity indicator
     if (has(CBK::strokeOpacity) || has(CBK::fillOpacity)) {
-        QString checkerboard =
-            QString(
-                R"(<pattern id="__checkerboard" patternUnits="userSpaceOnUse")"
-                R"( width="%1" height="%1">)"
-                R"(  <rect x="0" y="0" width="%2" height="%2" fill="#777"/>)"
-                R"(  <rect x="0" y="%2" width="%2" height="%2" fill="#fff"/>)"
-                R"(  <rect x="%2" y="%2" width="%2" height="%2" fill="#777"/>)"
-                R"(  <rect x="%2" y="0" width="%2" height="%2" fill="#fff"/>)"
-                R"(</pattern>)")
-                .arg(2 * checkerboardWidth)
-                .arg(checkerboardWidth);
-        svgDefs.append(checkerboard);
-
-        QString background, element;
-        if (config->defaultIconStyle == DIS::circle) {
-            background = element =
-                QString(
-                    R"(<path d="M %1 %2 A %3 %3 0 0 0 %4 %5" style="{S}"/>)")
-                    .arg(bl.x())
-                    .arg(bl.y())
-                    .arg(radius)
-                    .arg(tr.x())
-                    .arg(tr.y());
-        } else if (config->defaultIconStyle == DIS::square) {
-            background = element =
-                QString(R"(<path d="M %1 %2 H %3 V %4" style="{S}"/>)")
-                    .arg(bl.x())
-                    .arg(bl.y())
-                    .arg(tr.x())
-                    .arg(tr.y());
-        }
-
-        // Set style for color template
-        QStringList styleString;
-        QStringList bgStyleString;
-        // Set some defaults
-        if (!has(CBK::fillOpacity)) {
-            styleString.append("fill-opacity:0");
-            bgStyleString.append("fill-opacity:0");
-        } else {
-            if (!has(CBK::fill))
-                styleString.append("fill:#fff");
-            bgStyleString.append("fill:url(#__checkerboard)");
-        }
-
-        if (has(CBK::strokeOpacity)) {
-            if (!has(CBK::stroke))
-                styleString.append("stroke:#fff");
-            styleString.append(QString("stroke-width:%1").arg(strokeWidth));
-            bgStyleString.append(QString("stroke-width:%1").arg(strokeWidth));
-            bgStyleString.append("stroke:url(#__checkerboard)");
-        }
-
-        background.replace("{S}", bgStyleString.join(';'));
-        svgContent += background;
-
-        for (const char *key :
-             {CBK::fill, CBK::stroke, CBK::stroke, CBK::fillOpacity,
-              CBK::strokeOpacity})
-            if (has(key))
-                styleString.append(key + (":" + info.styles[key]));
-        element.replace("{S}", styleString.join(';'));
-        svgContent += element;
+        auto [defs, content] = _genOpacitySvg(config, info, bl, tr, radius);
+        svgDefs += defs;
+        svgContent += content;
     }
 
     // 4. Draw stroke-width indicator
-    if (has(CBK::strokeWidth)) {
-        QString element;
-        if (config->defaultIconStyle == DIS::circle) {
-            element =
-                QString(
-                    R"(<path d="M %1 %2 A %3 %3 0 0 0 %4 %5" style="{S}"/>)")
-                    .arg(str.x())
-                    .arg(str.y())
-                    .arg(sradius)
-                    .arg(stl.x())
-                    .arg(stl.y());
-        } else if (config->defaultIconStyle == DIS::square) {
-            element = QString(R"(<path d="M %1 %2 H %3" style="{S}"/>)")
-                          .arg(str.x())
-                          .arg(str.y())
-                          .arg(stl.x())
-                          .arg(stl.y());
-        }
-
-        QStringList styleString;
-        styleString.append("fill-opacity:0");
-        styleString.append(
-            has(CBK::stroke)
-                ? QString("stroke:%1").arg(info.styles[CBK::stroke])
-                : "stroke:#fff");
-        styleString.append(
-            QString("stroke-width:%1").arg(info.styles[CBK::strokeWidth]));
-        element.replace("{S}", styleString.join(';'));
-        svgContent.append(element);
-    }
+    if (has(CBK::strokeWidth))
+        svgContent += _genStrokeWidthSvg(config, info, stl, str, sradius);
 
     // 5. Draw marker start/end/mid indicator
-    if (has(CBK::markerStart) || has(CBK::markerMid) || has(CBK::markerEnd)) {
-        QString element = QString(R"(<path d="M %1 %2 H %3" style="{S}"/>)")
-                              .arg(mbl.x())
-                              .arg(mbl.y())
-                              .arg(mbr.x());
-        QStringList styleString;
-        styleString.append("stroke-width:2");
-        styleString.append(
-            has(CBK::stroke)
-                ? QString("stroke:%1").arg(info.styles[CBK::stroke])
-                : "stroke:#fff");
-        for (const char *key :
-             {CBK::markerStart, CBK::markerEnd, CBK::markerMid})
-            if (has(key))
-                styleString.append(key + (":" + info.styles[key]));
-        element.replace("{S}", styleString.join(';'));
-        svgContent.append(element);
-    }
+    if (has(CBK::markerStart) || has(CBK::markerMid) || has(CBK::markerEnd))
+        svgContent += _genMarkerSvg(info, mbl, mbr);
 
     // 6. Draw font-style indicator
-    if (has(CBK::fontFamily) || has(CBK::fontStyle)) {
-        QString element =
-            QString(R"(<text x="%1" y="%2" fill="#fff" style="{S}">%3</text>)")
-                .arg(size.width() * 0.5)
-                .arg(size.height() * (orientation ? 0.5 : 0.85))
-                .arg(config->defaultIconText);
-
-        QStringList styleString;
-
-        // Set default fsize
-        styleString.append(QString("font-size:%1").arg(size.height() * 0.5));
-        // Correctly position the text
-        styleString.append("text-anchor:middle");
-        styleString.append("fill:#fff");
-
-        for (const char *key : {CBK::fontFamily, CBK::fontStyle})
-            if (has(key))
-                styleString.append(key + (":" + info.styles[key]));
-        element.replace("{S}", styleString.join(';'));
-        svgContent += element;
-    }
+    if (has(CBK::fontFamily) || has(CBK::fontStyle))
+        svgContent += _genFontSvg(config, info, size, size.height() * 0.675);
 
     // Compose final icon
-    return QString(R"(<svg width="%1" height="%2" version="1.1")"
-                   R"( viewBox="0 0 %1 %2" xmlns="http://www.w3.org/2000/svg">)"
-                   R"( <defs>%3</defs>%4</svg>)")
-        .arg(size.width())
-        .arg(size.height())
-        .arg(svgDefs, svgContent)
-        .toUtf8();
+    return _composeSvg(size, svgDefs, svgContent).toUtf8();
 }
 
 QPixmap Panel::drawCentralButtonIcon() const {
     // Cache rendered icons and reuse them if config not changed.
     // Stores `{composed-style-list, icon}`.
-    static QCache<Config::StylesList, QPixmap> cachedIcons(C::iconCacheSize);
+    static QCache<Config::ButtonInfo, QPixmap> cachedIcons(C::iconCacheSize);
     // Cache resvgOptions to reduce system font loading time
     static std::unique_ptr<ResvgOptions> resvgOptions;
 
     // Reuse cached icon for speedup
-    if (cachedIcons.contains(composedStyles))
-        return *cachedIcons[composedStyles];
+    if (cachedIcons.contains(centralButtonInfo))
+        return *cachedIcons[centralButtonInfo];
 
     // Redraw icon
     Button *button = centralButton.get();
@@ -367,7 +483,8 @@ QPixmap Panel::drawCentralButtonIcon() const {
             resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
     }
 
-    QByteArray iconSvg = genCentralButtonIconSvg();
+    QByteArray iconSvg =
+        genCentralButtonSvg(button, *config, centralButtonInfo);
     ResvgRenderer renderer(iconSvg, *resvgOptions);
     if (!renderer.isValid()) {
         qCritical(
@@ -379,17 +496,12 @@ QPixmap Panel::drawCentralButtonIcon() const {
     QImage icon = renderer.renderToImage(iconSize.toSize());
     QPixmap pixmap = QPixmap::fromImage(icon);
     // QCache takes the ownership of pixmap and might free memory immediately.
-    cachedIcons.insert(composedStyles, new QPixmap(pixmap));
+    cachedIcons.insert(centralButtonInfo, new QPixmap(pixmap));
     return pixmap;
 }
 
-QByteArray Panel::genCentralButtonIconSvg() const {
-    // TODO: generate svg
-    return {};
-}
-
 bool Panel::isActive() const {
-    return !activeButtons.empty()
+    return bool(activeButtons.size())
            || std::any_of(
                childPanels.cbegin(), childPanels.cend(),
                [](const auto &panel) { return panel && panel->isActive(); });
@@ -532,15 +644,15 @@ Panel::Panel(Panel *parent, quint8 tSlot, const QSharedPointer<Config> &config)
       panelGrid(*_pGrid),
       coordinate(parent ? parent->calcRelativeCoordinate(tSlot) : QPoint{0, 0}),
       pSlot(parent ? parent->parentPanel ? parent->pSlot + 6 : tSlot + 1 : 0),
-      parentPanel(parent), rootPanel(parent ? parent->rootPanel : this),
-      tSlot(tSlot), childPanels(6, nullptr), borderButtons(6, nullptr),
-      hoverScale(1.5), unitLen(200), gapLen(3) {
+      parentPanel(parent), tSlot(tSlot), childPanels(6, nullptr),
+      borderButtons(6, nullptr), hoverScale(1.5), unitLen(200), gapLen(3) {
     using C::R60;
 
     // Preconditions
     Q_ASSERT_X(this->config, __func__, "Config not initialized");
     Q_ASSERT_X(this->_pGrid, __func__, "Panel grid not initialized");
-    Q_ASSERT_X(!parentPanel == (this == rootPanel), __func__, "Internal error");
+    // Q_ASSERT_X(!parentPanel == (this == rootPanel), __func__, "Internal
+    // error");
 
     // Set common window attributes
     setAttribute(Qt::WA_TranslucentBackground);
@@ -628,8 +740,7 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     Config::Slot slot = Config::calcSlot(pSlot, tSlot, rSlot, subSlot);
     QSharedPointer<Button> button(
         new Button(
-            geometry.toRect(), mask, hoverScale, centroid - geometry.topLeft(),
-            geometry.topLeft() - geometry.toRect().topLeft(), this,
+            geometry, mask, hoverScale, centroid - geometry.topLeft(), this,
             config->buttonBgColorInactive, config->buttonBgColorActive),
         [](Button *b) { b->deleteLater(); });
     styleButtons.insert(slot, button);
@@ -650,14 +761,16 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         // Don't capture `button` here, otherwise will cause smart pointer loop
         // copyStyle(slot);
 
-        if (this->styleButtons[slot]->isActive())
-            activeButtons.insert(slot);
-        else
-            activeButtons.remove(slot);
+        auto action = this->styleButtons[slot]->isActive()
+                          ? &ActiveButtons::insert
+                          : &ActiveButtons::remove;
 
-        // Update central icon of the root panel
-        rootPanel->updateComposedStyles();
-        rootPanel->updateCentralButton();
+        // Update styles and central icon of all parent panels
+        for (Panel *cur = this; cur; cur = cur->parentPanel) {
+            (cur->activeButtons.*action)(slot);
+            cur->composeCentralButtonInfo();
+            cur->updateCentralButton();
+        }
     });
 
     return button.get();
@@ -698,21 +811,50 @@ void Panel::delBorderButton(quint8 tSlot) {
 }
 
 void Panel::updateCentralButton() {
+    // Remove central button if no icon available / is not root panel
+    if (parentPanel
+        || (centralButtonInfo.styles.empty()
+            && centralButtonInfo.userIconSvg.isEmpty())) {
+        centralButton = nullptr;
+        return;
+    }
+
     QVector<QPointF> points = genCentralButtonMask();
+    QPointF centroid = std::reduce(points.begin(), points.end()) / 6.;
     QPolygonF mask(points);
     QRectF geometry = mask.boundingRect();
     mask.translate(-geometry.topLeft());
 
-    // TODO: draw icon (apply composed style)
+    // Replace central button
+    centralButton = QSharedPointer<Button>(
+        new Button(
+            geometry, mask, hoverScale, centroid - geometry.topLeft(), this,
+            config->buttonBgColorInactive, config->buttonBgColorActive),
+        [](Button *button) { button->deleteLater(); });
 
-    // create button
-    // centralButton = QSharedPointer<Button>(
-    //     new Button(), [](Button *button) { button->deleteLater(); });
-    // ...
-    // button.show()
+    // Draw and set icon for this button
+    centralButton->setIcon(drawCentralButtonIcon());
+    centralButton->setIconSize(centralButton->geometry().size());
+
+    centralButton->show();
+
+    // Raise on mouseEnter for better looking
+    connect(centralButton.get(), &Button::mouseEnter, this, &QWidget::raise);
+    // Set the style on click
+    // connect(button.get(), &QPushButton::clicked, this, [this, slot] {
+    // });
 }
 
-void Panel::updateComposedStyles() {}
+void Panel::composeCentralButtonInfo() {
+    centralButtonInfo.clear();
+
+    // Add styles from all active buttons
+    for (const Config::Slot &slot : activeButtons.orderedList()) {
+        centralButtonInfo.styles.insert(config->buttons[slot].styles);
+        centralButtonInfo.defIds.unite(config->buttons[slot].defIds);
+    }
+    qDebug() << centralButtonInfo.styles;
+}
 
 void Panel::moveEvent(QMoveEvent *event) {
     // Prevent infinite recursion.
@@ -841,4 +983,52 @@ void Panel::copyStyle(Config::Slot slot) {
     } else {
         qDebug() << "No style copied";
     }
+}
+
+void Panel::ActiveButtons::insert(const Config::Slot &slot) {
+    remove(slot);
+
+    if (list.size()) {
+        list[tail].second = slot;
+        list.insert(slot, {tail, slot});
+    } else {
+        head = slot;
+        list.insert(slot, {slot, slot});
+    }
+    tail = slot;
+}
+
+void Panel::ActiveButtons::remove(const Config::Slot &slot) {
+    if (!list.contains(slot))
+        return;
+
+    Config::Slot prev = list[slot].first;
+    Config::Slot next = list[slot].second;
+
+    if (prev != slot)
+        list[prev].second = (next == slot ? prev : next);
+    else
+        head = next;
+
+    if (next != slot)
+        list[next].first = (prev == slot ? next : prev);
+    else
+        tail = prev;
+
+    list.remove(slot);
+}
+
+qsizetype Panel::ActiveButtons::size() const {
+    return list.size();
+}
+
+QList<Config::Slot> Panel::ActiveButtons::orderedList() const {
+    if (!list.size())
+        return {};
+
+    QList<Config::Slot> result;
+    for (Config::Slot cur = head; cur != tail; cur = list[cur].second)
+        result.append(cur);
+    result.append(tail);
+    return result;
 }

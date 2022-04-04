@@ -66,7 +66,7 @@ private:
     void updateCentralButton();
 
     /// @brief Update #composedStyles from #activeButtons
-    void updateComposedStyles();
+    void composeCentralButtonInfo();
 
     /// @brief Update masked area
     void updateMask();
@@ -103,18 +103,7 @@ private:
         quint8 tSlot, quint8 rSlot, quint8 subSlot,
         const Config::ButtonInfo &info) const;
 
-    /// @brief Generate preset icon svg for representing showing on buttons
-    /// @details This function should be called to generate an icon when
-    /// the user does not provide a custom icon.
-    /// @param size size of the icon
-    /// @return The icon svg stored in a byte array
-    QByteArray genStyleButtonIconSvg(
-        quint8 tSlot, quint8 rSlot, quint8 subSlot,
-        const Config::ButtonInfo &info) const;
-
     QPixmap drawCentralButtonIcon() const;
-
-    QByteArray genCentralButtonIconSvg() const;
 
     /// @brief Tells whether this panel is currently active.
     /// @details A panel is active if one of its button is active, or one of
@@ -168,9 +157,6 @@ private:
     /// @brief Parent panel of this panel
     Panel *const parentPanel;
 
-    /// @brief Root panel of the panel group that this panel belongs
-    Panel *const rootPanel;
-
     /// @brief The tSlot of the parent panel in which this panel resides
     quint8 tSlot;
 
@@ -179,9 +165,6 @@ private:
 
     /// @brief Style buttons, mapped to corresponding slot
     QHash<Config::Slot, QSharedPointer<Button>> styleButtons;
-
-    /// @brief record a list of active buttons
-    QSet<Config::Slot> activeButtons;
 
     /// @brief Border buttons of this panel, for expanding children panels
     QVector<QSharedPointer<HiddenButton>> borderButtons;
@@ -200,7 +183,36 @@ private:
     /// @details Must be signed since negative computations are involved
     const qreal gapLen;
 
+    /// @brief Record a list of active buttons
+    /// @note The active buttons can reside on child panels of this panel.
+    class ActiveButtons {
+    public:
+        /// @brief append the button to the tail of the queue
+        void insert(const Config::Slot &slot);
+        /// @brief Remove a button from the queue
+        void remove(const Config::Slot &slot);
+        /// @brief Return number of active buttons
+        qsizetype size() const;
+        /// @brief Return the queue
+        QList<Config::Slot> orderedList() const;
+
+        ActiveButtons() = default;
+
+    private:
+        /// @brief stores {cur, {prev, next}}
+        /// @details O(1) time for insert and remove while maintaining order.
+        /// * If `prev == cur`, then `cur` is head
+        /// * If `next == cur`, then `cur` is tail
+        QHash<Config::Slot, QPair<Config::Slot, Config::Slot>> list;
+        /// @brief First active button in the deque.
+        /// @details If list is empty, this value is meaningless.
+        Config::Slot head;
+        /// @brief Last active button in the deque
+        /// @details If list is empty, this value is meaningless.
+        Config::Slot tail;
+    } activeButtons;
+
     /// @brief Styles composed from #activeButtons
-    Config::StylesList composedStyles;
+    Config::ButtonInfo centralButtonInfo;
 };
 #endif // PANEL_H
