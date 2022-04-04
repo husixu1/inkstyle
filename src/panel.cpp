@@ -196,10 +196,17 @@ static QString _genMarkerSvg(
     namespace CBK = C::C::B::K;
     auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
 
-    QString element = QString(R"(<path d="M %1 %2 H %3" style="{S}"/>)")
-                          .arg(mbl.x())
+    qreal start = mbl.x(), end = mbr.x(), mid = (mbl.x() + mbr.x()) / 2;
+    if (!has(CBK::markerStart))
+        start = mid;
+    if (!has(CBK::markerEnd))
+        end = mid;
+
+    QString element = QString(R"(<path d="M %1 %2 H %3 H %4" style="{S}"/>)")
+                          .arg(start)
                           .arg(mbl.y())
-                          .arg(mbr.x());
+                          .arg(mid)
+                          .arg(end);
     QStringList styleString;
     styleString.append("stroke-width:2");
     styleString.append(
