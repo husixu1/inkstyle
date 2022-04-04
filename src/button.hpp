@@ -1,19 +1,23 @@
 #ifndef BUTTON_H
 #define BUTTON_H
 
+#include "configmanager.hpp"
+
 #include <QEvent>
 #include <QParallelAnimationGroup>
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QRegion>
+#include <QWeakPointer>
 
 class Button : public QPushButton {
     Q_OBJECT
 
 public:
     Button(
-        QRect geometry, QPolygonF mask, qreal hoverScale, QPointF centroid,
-        QPointF bgOffset = QPointF(0, 0), QWidget *parent = nullptr);
+        QRectF geometry, QPolygonF mask, qreal hoverScale, QPointF centroid,
+        QPointF bgOffset = QPointF(0, 0), QWidget *parent = nullptr,
+        ConfigManager *config = nullptr);
 
     const QColor &getBgColor() const;
     void setBgColor(const QColor &newBgColor);
@@ -23,7 +27,7 @@ protected:
     virtual void leaveEvent(QEvent *e) override;
     virtual void mouseMoveEvent(QMouseEvent *e) override;
 
-    /// @brief Overriden to set mask on every resize
+    /// @brief Overridden to set mask on every resize
     virtual void resizeEvent(QResizeEvent *e) override;
 
     virtual void paintEvent(QPaintEvent *e) override;
@@ -32,8 +36,8 @@ signals:
     void mouseEnter();
     void mouseLeave();
 
-private:
-    const QRect inactiveGeometry;
+public:
+    const QRectF inactiveGeometry;
     const QPolygonF inactiveMask;
     const qreal hoverScale;
     /// @brief The geometry center of the background
@@ -43,6 +47,7 @@ private:
     const QColor inactiveBgColor;
     const QColor activeBgColor;
 
+private:
     QPoint mousePos;
     bool hovering;
 

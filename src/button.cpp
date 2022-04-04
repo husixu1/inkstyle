@@ -1,5 +1,7 @@
 #include "button.hpp"
 
+#include "constants.hpp"
+
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -8,17 +10,18 @@
 #include <iostream>
 
 Button::Button(
-    QRect geometry, QPolygonF maskPolygon, qreal hoverScale, QPointF centroid,
-    QPointF bgOffset, QWidget *parent)
+    QRectF geometry, QPolygonF maskPolygon, qreal hoverScale, QPointF centroid,
+    QPointF bgOffset, QWidget *parent, ConfigManager *config)
     : QPushButton(parent), inactiveGeometry(geometry),
       inactiveMask(maskPolygon), hoverScale(hoverScale), centroid(centroid),
-      bgOffset(bgOffset), inactiveBgColor(0x20, 0x20, 0x20, 0x80),
-      activeBgColor(0x10, 0x10, 0x10, 0x90), hovering(false),
-      bgColor(inactiveBgColor), animations(),
+      bgOffset(bgOffset),
+      inactiveBgColor(config ? config->buttonBgColorInactive : C::DBC::off),
+      activeBgColor(config ? config->buttonBgColorActive : C::DBC::on),
+      hovering(false), bgColor(inactiveBgColor), animations(),
       geometryAnimation(this, "geometry"), bgColorAnimation(this, "bgColor") {
     Q_ASSERT(hoverScale > 1.);
 
-    setGeometry(geometry);
+    setGeometry(geometry.toRect());
     setMask(maskPolygon.toPolygon());
 
     // initialize animation
@@ -46,17 +49,13 @@ void Button::leaveEvent(QEvent *) {
     emit mouseLeave();
 }
 
-void Button::mouseMoveEvent(QMouseEvent *) {
-    // std::cout << this << ": " << e->pos().x() << ", " << e->pos().y()
-    //           << std::endl;
-    // repaint();
-}
+void Button::mouseMoveEvent(QMouseEvent *) {}
 
 void Button::resizeEvent(QResizeEvent *e) {
     // transform icon
     setIconSize(e->size());
 
-    // Transform the mask. We paint the background polygon explicity and offset
+    // Transform the mask. We paint the background polygon explicitly and offset
     // the mask by 2px so that the background edge can get antialiased. (There's
     // no antialias effect if we only mask the button with QRegion)
     QTransform transform =
@@ -102,9 +101,11 @@ void Button::startAnimation() {
     if (hovering) {
         raise();
         QPointF centroidOffset = centroid * (hoverScale - 1.);
-        geometryAnimation.setEndValue(QRect(
-            (inactiveGeometry.topLeft() - centroidOffset).toPoint(),
-            inactiveGeometry.size() * hoverScale));
+        geometryAnimation.setEndValue(
+            QRectF(
+                inactiveGeometry.topLeft() - centroidOffset,
+                inactiveGeometry.size() * hoverScale)
+                .toRect());
         bgColorAnimation.setEndValue(activeBgColor);
     } else {
         lower();

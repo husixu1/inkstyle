@@ -52,7 +52,7 @@ static HWND findInkscapeWindow() {
     if (!isNotInkscapeWindow(cachedInkscapeWindow, (LPARAM)&enumWindowsParam))
         return cachedInkscapeWindow;
 
-    // Try to find
+    // Try to find an inkscape window
     bool inkscapeFound =
         !EnumWindows(isNotInkscapeWindow, (LPARAM)&enumWindowsParam);
     if (inkscapeFound) {
@@ -67,8 +67,8 @@ void Utils::pasteToInkscape() {
         qDebug() << "Pasting style to" << inkscape;
 
         // Windows assume that keyboard input goes to the foreground window,
-        // and seems there's not way to send key combinations to a background
-        // window.
+        // and seems there's no reliable way to send key combinations to a
+        // background window.
         if (!SetForegroundWindow(inkscape)) {
             qInfo() << "Cannot bring inkscape window to foreground";
             return;

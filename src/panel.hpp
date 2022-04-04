@@ -11,14 +11,29 @@
 #include <QVector>
 #include <QWeakPointer>
 #include <QWidget>
+#include <ResvgQt.h>
+#include <memory>
 
 /// @brief A Panel is a hexagon that contains multiple buttons.
 class Panel : public QWidget {
     Q_OBJECT
 public:
-    Panel(Panel *parent = nullptr, quint8 tSlot = 0);
+    Panel(
+        Panel *parent = nullptr, quint8 tSlot = 0,
+        const QSharedPointer<ConfigManager> &config = nullptr);
     virtual ~Panel() override;
 
+protected:
+    /// @brief Overridden to recursively move all panels
+    void moveEvent(QMoveEvent *event) override;
+    /// @brief Overridden to recursively close all panels
+    void closeEvent(QCloseEvent *event) override;
+    /// @brief Overridden to update visual guides
+    void paintEvent(QPaintEvent *event) override;
+    /// @brief Overridden to close all children
+    void enterEvent(QEvent *event) override;
+
+private:
     /// @brief Add buttons that applies style to inkscape objects
     /// @param tSlot Theta(angle)-slot, 0~5
     /// @param rSlot Radius-slot, 1~2
@@ -47,23 +62,6 @@ public:
     HiddenButton *addBorderButton(quint8 tSlot);
     void delBorderButton(quint8 tSlot);
 
-    static void setConfig(ConfigManager *newConfig);
-
-    static QPixmap drawIcon(
-        const QSizeF &iconSize, const QPointF &centroid,
-        const ConfigManager::ButtonInfo &button);
-
-protected:
-    /// @brief Overridden to recursively move all panels
-    void moveEvent(QMoveEvent *event) override;
-    /// @brief Overridden to recursively close all panels
-    void closeEvent(QCloseEvent *event) override;
-    /// @brief Overridden to update visual guides
-    void paintEvent(QPaintEvent *event) override;
-    /// @brief Overridden to close all children
-    void enterEvent(QEvent *event) override;
-
-private:
     /// @brief Update buttons at the border of the panel
     void updateBorderButtons();
 
@@ -87,6 +85,19 @@ private:
     /// @note The generated point coordinates are relative to this panel
     QVector<QPointF> genBorderButtonMask(quint8 tSlot);
 
+    QPixmap drawIcon(
+        quint8 tSlot, quint8 rSlot, quint8 subSlot,
+        const ConfigManager::ButtonInfo &info) const;
+
+    /// @brief Generate preset icon svg for representing showing on buttons
+    /// @details This function should be called to generate an icon when
+    /// the user does not provide a custom icon.
+    /// @param size size of the icon
+    /// @return The icon svg stored in a byte array
+    QByteArray genIconSvg(
+        quint8 tSlot, quint8 rSlot, quint8 subSlot,
+        const ConfigManager::ButtonInfo &info) const;
+
 signals:
     void pSlotChanged();
 
@@ -96,8 +107,8 @@ private slots:
     void copyStyle(ConfigManager::Slot slot);
 
 private:
-    /// @brief One global config for all panels
-    static ConfigManager *config;
+    /// @brief A config that is shared across all panels
+    QSharedPointer<ConfigManager> config;
 
     /// @brief The grid system to track all panels' locations
     /// @details
@@ -116,7 +127,11 @@ private:
     /// |     /     \     /     \     |
     /// | ---• -1,-1 •---• 1,-2  •--- |
     /// ```````````````````````````````
-    static QHash<QPoint, Panel *> panelGrid;
+    typedef QHash<QPoint, Panel *> PGrid;
+    /// @brief The panel grid storage. Use the alias #panelGrid instead.
+    QSharedPointer<PGrid> _pGrid;
+    /// @brief A convenient alias to (*_pGrid)
+    PGrid &panelGrid;
 
     /// @brief Coordinate in #panelGrid
     /// @see panelGrid
@@ -137,6 +152,9 @@ private:
     /// @brief Children panels of this panel
     QVector<QSharedPointer<Panel>> childPanels;
 
+    /// @brief Style buttons, mapped to corresponding slot
+    QHash<ConfigManager::Slot, QSharedPointer<Button>> styleButtons;
+
     /// @brief Border buttons of this panel, for expanding children panels
     QVector<QSharedPointer<HiddenButton>> borderButtons;
 
@@ -150,5 +168,16 @@ private:
     /// @brief gap between buttons
     /// @details Must be signed since negative computations are involved
     const qreal gapLen;
+
+    /// @brief We cache some data for better performance/less flicker
+    /// @details cache are shared across all panels, over the entire session
+    static struct {
+        /// @brief Reduce system font loading time
+        std::unique_ptr<ResvgOptions> resvgOptions;
+        /// @brief Reuse rendered icons if config not changed
+        /// @details Stores `{slot, {buttonInfo-hash, icon}}`. The hash is used
+        /// test the validity of the buttonInfo associated with `slot`.
+        QHash<ConfigManager::Slot, QPair<QByteArray, QPixmap>> styleIcons;
+    } cache;
 };
 #endif // PANEL_H

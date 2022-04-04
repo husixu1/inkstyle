@@ -8,12 +8,12 @@
 
 int main(int argc, char *argv[]) try {
     // Read config
-    ConfigManager config("res/inkstyle.yaml");
-    Panel::setConfig(&config);
+    QSharedPointer<ConfigManager> config(
+        new ConfigManager("res/inkstyle.yaml"));
 
     QApplication a(argc, argv);
 
-    // Don't quit on last window closed;
+    // Don't quit on last window closed
     a.setQuitOnLastWindowClosed(false);
 
     // Set app style
@@ -25,13 +25,13 @@ int main(int argc, char *argv[]) try {
     // Register hotkey
     QHotkey hotkey(QKeySequence("Ctrl+Shift+F"), true, &a);
     QSharedPointer<Panel> panel(nullptr);
-    QObject::connect(&hotkey, &QHotkey::activated, [&]() {
+    QObject::connect(&hotkey, &QHotkey::activated, qApp, [&]() {
         qDebug() << "Hotkey Activated";
         if (!panel)
-            panel = QSharedPointer<Panel>(new Panel);
+            panel = QSharedPointer<Panel>(new Panel(nullptr, 0, config));
         panel->show();
     });
-    QObject::connect(&hotkey, &QHotkey::released, [&]() {
+    QObject::connect(&hotkey, &QHotkey::released, qApp, [&]() {
         qDebug() << "Hotkey Released";
         if (panel)
             panel->close();

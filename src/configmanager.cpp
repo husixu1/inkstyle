@@ -3,6 +3,7 @@
 #include "constants.hpp"
 
 #include <QByteArray>
+#include <QCryptographicHash>
 #include <QDebug>
 #include <QFile>
 #include <QString>
@@ -33,101 +34,140 @@ struct convert<QByteArray> {
         return true;
     }
 };
+template <>
+struct convert<QColor> {
+    static Node encode(const QColor &rhs) { return Node(rhs.name()); }
+    static bool decode(const Node &node, QColor &rhs) {
+        if (!node.IsScalar())
+            return false;
+        rhs = QColor(node.Scalar().c_str());
+        return true;
+    }
+};
 } // namespace YAML
 
 void ConfigManager::parseConfig(const YAML::Node &config) {
-    using namespace C::CK;
+    parseGlobalConfig(config);
+    parseButtonsConfig(config);
+}
 
-    if (config[globalConfig].IsDefined()) {
-        if (!config[globalConfig].IsMap())
-            qWarning() << "'" << globalConfig << "' is not a map, skipping";
-        const YAML::Node &gConfig = config[globalConfig];
+void ConfigManager::parseGlobalConfig(const YAML::Node &config) {
+    namespace CC = C::C;
+    namespace GK = C::C::G::K;
+    namespace DIS = C::C::G::V::DIS;
 
-        // load global configs
-        if (gConfig[GK::panelBgColor].IsScalar())
-            panelBgColor = gConfig[GK::panelBgColor].as<quint32>();
-        if (gConfig[GK::buttonBgColor].IsScalar())
-            panelBgColor = gConfig[GK::buttonBgColor].as<quint32>();
-        if (gConfig[GK::guideColor].IsScalar())
-            panelBgColor = gConfig[GK::guideColor].as<quint32>();
-        if (gConfig[GK::panelMaxLevels].IsScalar())
-            panelMaxLevels = gConfig[GK::panelMaxLevels].as<quint8>();
-        if (gConfig[GK::panelRadius].IsScalar())
-            panelRadius = gConfig[GK::panelRadius].as<quint32>();
-    }
+    if (config[CC::global].IsDefined()) {
+        if (!config[CC::global].IsMap())
+            qWarning(R"("%s" is not a map, skipping...)", CC::global);
+        const YAML::Node &gConfig = config[CC::global];
 
-    if (config[buttonsConfig].IsDefined()) {
-        if (!config[buttonsConfig].IsSequence())
-            qWarning() << "'" << buttonsConfig
-                       << "' is not a list. Skipping...";
+        // Check whether config exists and load it if exist
+        auto loadGlobalConfig = [&]<typename T>(const char *key, T &config) {
+            if (gConfig[key].IsDefined())
+                config = gConfig[key].as<T>();
+        };
+        loadGlobalConfig(GK::panelBgColor, panelBgColor);
+        loadGlobalConfig(GK::buttonBgColorInactive, buttonBgColorInactive);
+        loadGlobalConfig(GK::buttonBgColorActive, buttonBgColorActive);
+        loadGlobalConfig(GK::guideColor, guideColor);
+        loadGlobalConfig(GK::panelMaxLevels, panelMaxLevels);
+        loadGlobalConfig(GK::panelRadius, panelRadius);
+        loadGlobalConfig(GK::defaultIconStyle, defaultIconStyle);
+        loadGlobalConfig(GK::defaultIconText, defaultIconText);
 
-        size_t numButtons = 0;
-        for (const YAML::Node &button : config[buttonsConfig]) {
-            if (!button.IsMap())
-                qWarning() << "The " << (numButtons + 1)
-                           << "-th button is not defined as a map. Skipping...";
-
-            // Check for validity and availability of slots
-            if (!button[BK::slot].IsScalar()) {
-                qWarning() << "The " << (numButtons + 1)
-                           << "-th button's \"slot\" value is either not "
-                              "defined or not a number. Skipping...";
-                continue;
-            }
-            Slot slot = button[BK::slot].as<Slot>();
-            if (((slot >> 24) & 0xff) > panelMaxLevels * 6
-                || ((slot >> 16) & 0xff) > 5 || ((slot >> 8) & 0xff) > 2
-                || (slot & 0xff) > ((slot >> 8) & 0xff) * 2) {
-                qWarning() << "Slot " << Qt::hex << slot
-                           << " invalid. Skipping...";
-                continue;
-            }
-            if (buttons.contains(slot)) {
-                qWarning() << "Slot " << Qt::hex << slot
-                           << " already registered. Skipping...";
-                continue;
-            }
-
-            // Load button styles
-            qDebug() << "Registering slot " << Qt::hex << slot;
-
-            QMap<QString, QString> styles;
-            QStringList styleList;
-            QByteArray styleSvg;
-
-            if (button[BK::customStyle].IsDefined()) {
-                // Load non-standard styles
-                styleSvg = button[BK::customStyle].as<QString>().toUtf8();
-            } else {
-                // Load standard styles
-                static const char *standardStyles[] = {
-                    BK::stroke,      BK::strokeWidth, BK::strokeDashArray,
-                    BK::strokeStart, BK::strokeEnd,   BK::fill,
-                    BK::fillOpacity, BK::fillGradient};
-                for (const char *style : standardStyles)
-                    if (button[style].IsDefined()) {
-                        styles.insert(
-                            QString(style), button[style].as<QString>());
-                        styleList.append(
-                            QString(style) + ":" + button[style].as<QString>());
-                    }
-
-                // Compose styles to svg
-                styleSvg =
-                    QString(C::ST::plainStyleTemplate)
-                        .replace(C::ST::stylePlaceHolder, styleList.join(";"))
-                        .toUtf8();
-            }
-
-            QByteArray icon;
-            if (button[BK::customIcon].IsDefined())
-                icon = button[icon].as<QString>().toUtf8();
-
-            buttons.insert(
-                slot, QSharedPointer<ButtonInfo>(
-                          new ButtonInfo(styleSvg, icon, styles)));
-            ++numButtons;
+        // Check sanity of global config
+        if (!QSet<QString>({DIS::circle, DIS::square})
+                 .contains(defaultIconStyle)) {
+            qWarning(
+                R"(%s:%s = "%s" is not recognized. Falling back to "%s")",
+                CC::global, GK::defaultIconStyle,
+                defaultIconStyle.toStdString().c_str(), DIS::circle);
+            defaultIconStyle = DIS::circle;
         }
+    }
+}
+
+void ConfigManager::parseButtonsConfig(const YAML::Node &config) {
+    namespace CC = C::C;
+    namespace BK = C::C::B::K;
+
+    if (!config[CC::buttons].IsDefined())
+        return;
+
+    if (!config[CC::buttons].IsSequence())
+        qWarning(R"("%s" is not a list, skipping...)", CC::buttons);
+
+    // Valid config keys that a button can have
+    QSet<QString> validKeys({BK::slot, BK::customIcon, BK::customStyle});
+    for (const char *key : BK::basicStyles)
+        validKeys.insert(key);
+
+    size_t numButtons = 0;
+    for (const YAML::Node &button : config[CC::buttons]) {
+        ++numButtons;
+
+        // Check for invalid keys
+        for (const auto &elem : button)
+            if (!validKeys.contains(elem.first.Scalar().c_str()))
+                qWarning(
+                    "Invalid key %s[%ld]:%s ignored.", CC::buttons, numButtons,
+                    elem.first.Scalar().c_str());
+
+        if (!button.IsMap())
+            qWarning(
+                "Button %s[%ld] is not a map, skipping...", CC::buttons,
+                numButtons);
+
+        // Check for validity and availability of slots
+        Slot slot = button[BK::slot].as<Slot>();
+        if (((slot >> 24) & 0xff) > panelMaxLevels * 6
+            || ((slot >> 16) & 0xff) > 5 || ((slot >> 8) & 0xff) > 2
+            || (slot & 0xff) > ((slot >> 8) & 0xff) * 2) {
+            qWarning(
+                "Slot %s[%ld]:%s = %#x invalid, skipping...", CC::buttons,
+                numButtons, BK::slot, slot);
+            continue;
+        }
+        if (buttons.contains(slot)) {
+            qWarning(
+                "Slot %s[%ld]:%s = %#x already registered, skipping...",
+                CC::buttons, numButtons, BK::slot, slot);
+            continue;
+        }
+
+        // Load button styles
+        qDebug("Registering slot %#x", slot);
+
+        QMap<QString, QString> styles;
+        QStringList styleList;
+        QByteArray styleSvg;
+
+        if (button[BK::customStyle].IsDefined()) {
+            // Load non-standard styles
+            styleSvg = button[BK::customStyle].as<QString>().toUtf8();
+        } else {
+            // Load standard styles
+            for (const char *style : BK::basicStyles)
+                if (button[style].IsDefined()) {
+                    styles.insert(QString(style), button[style].as<QString>());
+                    styleList.append(
+                        QString(style) + ":" + button[style].as<QString>());
+                }
+
+            // Compose styles to svg
+            styleSvg = QString(R"(<?xml version="1.0" encoding="UTF-8"?>)"
+                               R"(<svg><inkscape:clipboard style="%1"/></svg>)")
+                           .arg(styleList.join(";"))
+                           .toUtf8();
+        }
+
+        QByteArray icon;
+        if (button[BK::customIcon].IsDefined())
+            icon = button[icon].as<QString>().toUtf8();
+
+        buttons.insert(
+            slot, QSharedPointer<ButtonInfo>(
+                      new ButtonInfo{*this, styleSvg, icon, styles}));
     }
 }
 
@@ -135,7 +175,7 @@ ConfigManager::ConfigManager(const QString &file, QObject *parent)
     : QObject(parent) {
 
     // Parse default config
-    qDebug() << "Loading default config.";
+    qDebug("Loading default config.");
     QFile baseConfig(":/res/default.yaml");
     baseConfig.open(QFile::ReadOnly);
     YAML::Node defaultConfig = YAML::Load(baseConfig.readAll().toStdString());
@@ -147,60 +187,26 @@ ConfigManager::ConfigManager(const QString &file, QObject *parent)
         YAML::Node userConfig = YAML::LoadFile(file.toStdString());
         parseConfig(userConfig);
     } else {
-        qWarning() << "No config file found. Using default config.";
+        qWarning("No config file found. Using default config.");
     }
 }
-
-QByteArray ConfigManager::ButtonInfo::genIconSvg(
-    QSizeF size, const PresetIconStyle &presetStyle) const {
-    using namespace C::CK::BK;
-
-    // Return custom icon if defined
-    if (userIconSvg.size() > 0)
-        return userIconSvg;
-
-    QString iconTemplate;
-    switch (presetStyle) {
-    case PresetIconStyle::circle:
-        iconTemplate = QString(
-            R"-(<svg width="{W}" height="{H}" version="1.1")-"
-            R"-( viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">)-"
-            R"-(  <circle cx="{CX}" cy="{CY}" r="{R}" style="{STYLE}"/>)-"
-            R"-(</svg>)-");
-        iconTemplate.replace("{W}", QString::number(size.width()));
-        iconTemplate.replace("{H}", QString::number(size.height()));
-        iconTemplate.replace("{CX}", QString::number(size.width() / 2.));
-        iconTemplate.replace("{CY}", QString::number(size.height() / 2.));
-        iconTemplate.replace(
-            "{R}", QString::number(qMin(size.height(), size.width()) * 0.45));
-        break;
-    default:
-        return QByteArray();
-    }
-
-    QStringList styleString;
-    // set default fill
-    if (!styles.contains(fill))
-        styleString.append("fill:none");
-    // set default stroke
-    if (!styles.contains(stroke) && styles.contains(strokeWidth))
-        styleString.append("stroke:#fff");
-
-    for (auto iter = styles.constKeyValueBegin();
-         iter != styles.constKeyValueEnd(); ++iter)
-        styleString.append(iter->first + ":" + iter->second);
-    iconTemplate.replace("{STYLE}", styleString.join(";"));
-
-    return iconTemplate.toUtf8();
-}
-
-ConfigManager::ButtonInfo::ButtonInfo(
-    const QByteArray &styleSvg, const QByteArray &userIconSvg,
-    const QMap<QString, QString> &styles)
-    : styleSvg(styleSvg), userIconSvg(userIconSvg), styles(styles) {}
 
 ConfigManager::Slot ConfigManager::calcSlot(
     quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     return quint32(pSlot) << 24 | quint32(tSlot) << 16 | quint32(rSlot) << 8
            | quint32(subSlot);
+}
+
+QByteArray ConfigManager::ButtonInfo::genHash() const {
+    QCryptographicHash hash(QCryptographicHash::Md5);
+    hash.addData(QString::number(reinterpret_cast<intptr_t>(&config)).toUtf8());
+    hash.addData(styleSvg);
+    hash.addData(userIconSvg);
+    hash.addData(styles.keys().join("").toUtf8());
+    hash.addData(styles.values().join("").toUtf8());
+    return hash.result();
+}
+
+bool ConfigManager::ButtonInfo::validateHash(const QByteArray &hash) const {
+    return genHash() == hash;
 }
