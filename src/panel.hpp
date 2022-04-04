@@ -49,8 +49,9 @@ public:
 
     static void setConfig(ConfigManager *newConfig);
 
-    static QPixmap drawIcon(qint32 unitLen, quint8 tSlot, quint8 subSlot);
-
+    static QPixmap drawIcon(
+        const QSizeF &iconSize, const QPointF &centroid,
+        const ConfigManager::ButtonInfo &button);
 
 protected:
     /// @brief Overridden to recursively move all panels

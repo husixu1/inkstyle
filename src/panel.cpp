@@ -8,13 +8,13 @@
 #include <QFile>
 #include <QMimeData>
 #include <QMoveEvent>
-#include <QPaintEngine>
 #include <QPainter>
 #include <QPalette>
 #include <QPolygon>
 #include <QPolygonF>
 #include <QPushButton>
 #include <QRegion>
+#include <QSvgRenderer>
 #include <QVector>
 #include <QtDebug>
 #include <QtMath>
@@ -33,39 +33,31 @@ void Panel::setConfig(ConfigManager *newConfig) {
     config = newConfig;
 }
 
-QPixmap Panel::drawIcon(qint32 unitLen, quint8 tSlot, quint8 subSlot) {
-    QSize iconSize(int(unitLen), int(qSin(R60) * unitLen));
+QPixmap Panel::drawIcon(
+    const QSizeF &iconSize, const QPointF &centroid,
+    const ConfigManager::ButtonInfo &button) {
 
-    QPixmap pixmap(iconSize);
+    QPixmap pixmap(iconSize.toSize());
     pixmap.fill(Qt::transparent);
+
     QPainter painter(&pixmap);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.setRenderHints(
         QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
-    painter.setPen(QPen(Qt::white, 4));
 
-    // Translate and rotate are dependent. I.e. the coordinate system used
-    // is always the painter's global coordinate system after movement.
-    if (tSlot == 0 || tSlot == 3) {
-        if ((subSlot + tSlot) % 2) {
-            painter.rotate(60);
-            painter.translate(0., -qSin(R60) * iconSize.width());
-        } else {
-            painter.translate(iconSize.width() / 2., 0);
-            painter.rotate(60);
-        }
-    } else if (tSlot == 2 || tSlot == 5) {
-        if ((subSlot + tSlot) % 2) {
-            painter.rotate(-60);
-            painter.translate(-iconSize.width() / 2., 0);
-        } else {
-            painter.translate(0., qSin(R60) * iconSize.width());
-            painter.rotate(-60);
-        }
-    }
+    // Move the icon's centroid to the button's centroid
+    constexpr float S = 2. / 3.;
+    QPointF scaledCentroid(
+        iconSize.width() * S / 2, iconSize.height() * S / 2.);
+    painter.setWorldTransform(
+        QTransform::fromScale(S, S)
+        * QTransform::fromTranslate(
+            (centroid - scaledCentroid).x(), (centroid - scaledCentroid).y()));
 
-    painter.drawRect(
-        iconSize.width() / 2. - unitLen / 8, iconSize.height() - unitLen / 2,
-        unitLen / 4, unitLen / 4);
+    // Render the button's svg
+    QSvgRenderer renderer(button.genIconSvg(iconSize));
+    renderer.setAspectRatioMode(Qt::KeepAspectRatio);
+    renderer.render(&painter);
 
     return pixmap;
 }
@@ -298,8 +290,7 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
 
     QRectF geometry(minX, minY, maxX - minX, maxY - minY);
     Button *button = new Button(
-        geometry.toRect(), mask, hoverScale,
-        QPointF(centroid - geometry.topLeft()),
+        geometry.toRect(), mask, hoverScale, centroid - geometry.topLeft(),
         geometry.topLeft() - geometry.toRect().topLeft(), this);
 
     // TEST: Draw an icon
@@ -311,7 +302,12 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
             int(unitLen / 3. - 2 * qCos(R30) * gapLen),
             int(qSin(R60) * (unitLen / 3. - 2 * qCos(R30) * gapLen)));
 
-        button->setIcon(drawIcon(unitLen, tSlot, subSlot));
+        // Draw with 2x size, otherwise icon won't scale
+        button->setIcon(drawIcon(
+            iconSize * hoverScale, (centroid - geometry.topLeft()) * hoverScale,
+            *config->buttons[slot]));
+
+        // button->setIcon(QIcon(C::SC::circleIcon));
         button->setIconSize(iconSize.toSize());
     }
 
@@ -469,9 +465,9 @@ void Panel::copyStyle(ConfigManager::Slot slot) {
         // Copy style associated with slot to clipboard
         QMimeData *styleSvg = new QMimeData;
         styleSvg->setData(
-            C::SC::styleMimeType, config->buttons[slot].styleSvg.toUtf8());
+            C::ST::styleMimeType, config->buttons[slot]->styleSvg);
         QApplication::clipboard()->setMimeData(styleSvg);
-        qDebug() << "Style copied " << styleSvg->data(C::SC::styleMimeType);
+        qDebug() << "Style copied " << styleSvg->data(C::ST::styleMimeType);
     } else {
         qDebug() << "No style copied";
     }
