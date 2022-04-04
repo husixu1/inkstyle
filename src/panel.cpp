@@ -385,6 +385,74 @@ QVector<QPointF> Panel::genBorderButtonMask(quint8 tSlot) {
         }};
 }
 
+QVector<QPointF>
+Panel::genStyleButtonMask(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+    using C::R30, C::R60;
+
+    // Upper half of the hexagon:
+    /*
+    **       •---•---•---•
+    **      / \ / \ / \ / \
+    **     •---•---•---•---•
+    **    / \ / \ / \ / \ / \
+    **   •---•---•---•---2---3
+    **  / \ / \ / \ / \ / \ / \
+    ** •---•---•---C-->•-->1-->2
+    */
+    // -->: the tSlot direction
+    // C: center of the hexagon
+    // •: triangle vertices
+    // 1: the 1st point
+    // 2: the 2nd point
+    // 3: the 3rd point
+
+    // Vertex of the triangular button (coordinates relative to panel)
+    return {
+        {
+            // The 1st point
+            size().width() / 2.
+                // Base x
+                + ((rSlot * qCos(tSlot * R60)
+                    + (subSlot / 2) * qCos((tSlot + 2) * R60))
+                       * unitLen / 3.
+                   // Offset for border
+                   + gapLen * qCos((tSlot + 0.5 + (subSlot % 2)) * R60)),
+            size().height() / 2.
+                // Base y
+                - ((rSlot * qSin(tSlot * R60)
+                    + (subSlot / 2) * qSin((tSlot + 2) * R60))
+                       * unitLen / 3.
+                   // Offset for border
+                   + gapLen * qSin((tSlot + 0.5 + (subSlot % 2)) * R60)),
+        },
+        {
+            // The 2nd point
+            size().width() / 2.
+                + (((rSlot + 1 - (subSlot % 2)) * qCos(tSlot * R60)
+                    + ((subSlot + 1) / 2) * qCos((tSlot + 2) * R60))
+                       * unitLen / 3.
+                   + gapLen * qCos((tSlot + 2.5 - (subSlot % 2) * 3) * R60)),
+            size().height() / 2.
+                - (((rSlot + 1 - (subSlot % 2)) * qSin(tSlot * R60)
+                    + ((subSlot + 1) / 2) * qSin((tSlot + 2) * R60))
+                       * unitLen / 3.
+                   + gapLen * qSin((tSlot + 2.5 - (subSlot % 2) * 3) * R60)),
+        },
+        {
+            // The 3rd point
+            size().width() / 2.
+                + (((rSlot + 1) * qCos(tSlot * R60)
+                    + (subSlot / 2 + 1) * qCos((tSlot + 2) * R60))
+                       * unitLen / 3.
+                   + gapLen * qCos((tSlot - 1.5 - (subSlot % 2)) * R60)),
+            size().height() / 2.
+                - (((rSlot + 1) * qSin(tSlot * R60)
+                    + (subSlot / 2 + 1) * qSin((tSlot + 2) * R60))
+                       * unitLen / 3.
+                   + gapLen * qSin((tSlot - 1.5 - (subSlot % 2)) * R60)),
+        }};
+}
+
 Panel::Panel(Panel *parent, quint8 tSlot, const QSharedPointer<Config> &config)
     : QWidget(nullptr), config(parent ? parent->config : config),
       _pGrid(parent ? parent->_pGrid : QSharedPointer<PGrid>(new PGrid)),
@@ -472,74 +540,10 @@ void Panel::updateMask() {
 
 Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     Q_ASSERT(tSlot <= 5);
-    Q_ASSERT(1 <= rSlot && rSlot <= 2);
+    Q_ASSERT(rSlot <= 2);
     Q_ASSERT(subSlot <= rSlot * 2);
 
-    using C::R30, C::R60;
-
-    // Upper half of the hexagon:
-    /*
-    **       •---•---•---•
-    **      / \ / \ / \ / \
-    **     •---•---•---•---•
-    **    / \ / \ / \ / \ / \
-    **   •---•---•---•---2---3
-    **  / \ / \ / \ / \ / \ / \
-    ** •---•---•---C-->•-->1-->2
-    */
-    // -->: the tSlot direction
-    // C: center of the hexagon
-    // •: triangle vertices
-    // 1: the 1st point
-    // 2: the 2nd point
-    // 3: the 3rd point
-
-    // Vertex of the triangular button (coordinates relative to panel)
-    QVector<QPointF> points = {
-        {
-            // The 1st point
-            size().width() / 2.
-                // Base x
-                + ((rSlot * qCos(tSlot * R60)
-                    + (subSlot / 2) * qCos((tSlot + 2) * R60))
-                       * unitLen / 3.
-                   // Offset for border
-                   + gapLen * qCos((tSlot + 0.5 + (subSlot % 2)) * R60)),
-            size().height() / 2.
-                // Base y
-                - ((rSlot * qSin(tSlot * R60)
-                    + (subSlot / 2) * qSin((tSlot + 2) * R60))
-                       * unitLen / 3.
-                   // Offset for border
-                   + gapLen * qSin((tSlot + 0.5 + (subSlot % 2)) * R60)),
-        },
-        {
-            // The 2nd point
-            size().width() / 2.
-                + (((rSlot + 1 - (subSlot % 2)) * qCos(tSlot * R60)
-                    + ((subSlot + 1) / 2) * qCos((tSlot + 2) * R60))
-                       * unitLen / 3.
-                   + gapLen * qCos((tSlot + 2.5 - (subSlot % 2) * 3) * R60)),
-            size().height() / 2.
-                - (((rSlot + 1 - (subSlot % 2)) * qSin(tSlot * R60)
-                    + ((subSlot + 1) / 2) * qSin((tSlot + 2) * R60))
-                       * unitLen / 3.
-                   + gapLen * qSin((tSlot + 2.5 - (subSlot % 2) * 3) * R60)),
-        },
-        {
-            // The 3rd point
-            size().width() / 2.
-                + (((rSlot + 1) * qCos(tSlot * R60)
-                    + (subSlot / 2 + 1) * qCos((tSlot + 2) * R60))
-                       * unitLen / 3.
-                   + gapLen * qCos((tSlot - 1.5 - (subSlot % 2)) * R60)),
-            size().height() / 2.
-                - (((rSlot + 1) * qSin(tSlot * R60)
-                    + (subSlot / 2 + 1) * qSin((tSlot + 2) * R60))
-                       * unitLen / 3.
-                   + gapLen * qSin((tSlot - 1.5 - (subSlot % 2)) * R60)),
-        }};
-
+    QVector<QPointF> points = genStyleButtonMask(tSlot, rSlot, subSlot);
     QPointF centroid = std::reduce(points.begin(), points.end()) / 3.;
     QPolygonF mask(points);
     QRectF geometry(mask.boundingRect());

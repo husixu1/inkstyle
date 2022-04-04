@@ -85,6 +85,15 @@ private:
     /// @note The generated point coordinates are relative to this panel
     QVector<QPointF> genBorderButtonMask(quint8 tSlot);
 
+    /// @brief Generate mask for a border-button
+    /// @param tSlot @see addStyleButton
+    /// @param rSlot @see addStyleButton
+    /// @param subSlot @see addStyleButton
+    /// @return A list of points, which is the vertices of the mask polygon
+    /// @note The generated point coordinates are relative to this panel
+    QVector<QPointF>
+    genStyleButtonMask(quint8 tSlot, quint8 rSlot, quint8 subSlot);
+
     QPixmap drawIcon(
         quint8 tSlot, quint8 rSlot, quint8 subSlot,
         const Config::ButtonInfo &info) const;
