@@ -49,14 +49,25 @@ QPixmap Panel::drawIcon(
     if (!cache.resvgOptions) {
         cache.resvgOptions = std::make_unique<ResvgOptions>();
         cache.resvgOptions->loadSystemFonts();
+        // cache.resvgOptions->setDpi(96);
+        cache.resvgOptions->setImageRenderingMode(
+            resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
     }
-    ResvgRenderer renderer(
-        genIconSvg(tSlot, rSlot, subSlot, info), *cache.resvgOptions);
-    QPixmap icon =
-        QPixmap::fromImage(renderer.renderToImage(iconSize.toSize()));
 
-    cache.styleIcons.insert(slot, {info.genHash(), icon});
-    return icon;
+    QByteArray iconSvg = genIconSvg(tSlot, rSlot, subSlot, info);
+    qDebug("%s\n", iconSvg.toStdString().c_str());
+    ResvgRenderer renderer(iconSvg, *cache.resvgOptions);
+    if (!renderer.isValid()) {
+        qCritical(
+            "Invalid SVG generated from slot %#x:\n%s", slot,
+            iconSvg.toStdString().c_str());
+        return QPixmap();
+    }
+
+    QImage icon = renderer.renderToImage(iconSize.toSize());
+    QPixmap pixmap = QPixmap::fromImage(icon);
+    cache.styleIcons.insert(slot, {info.genHash(), pixmap});
+    return pixmap;
 }
 
 QByteArray Panel::genIconSvg(
