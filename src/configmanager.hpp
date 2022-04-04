@@ -27,7 +27,14 @@ public:
         QIcon icon;
         QString styleSvg;
     };
-    QHash<quint16, ButtonInfo> buttons;
+
+    typedef quint32 Slot;
+
+    static Slot
+    calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);
+
+    /// @brief A list of buttons
+    QHash<Slot, ButtonInfo> buttons;
 };
 
 #endif // CONFIGMANAGER_HPP

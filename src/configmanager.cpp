@@ -45,10 +45,10 @@ void ConfigManager::parseConfig(const YAML::Node &config) {
                               "defined or not a number. Skipping...";
                 continue;
             }
-            quint16 slot = button[BK::slot].as<quint16>();
-            if (((slot >> 12) & 0xf) > panelMaxLevels * 6
-                || ((slot >> 8) & 0xf) > 5 || ((slot >> 4) & 0xf) > 2
-                || (slot & 0xf) > ((slot >> 8) & 0xf) * 2) {
+            Slot slot = button[BK::slot].as<Slot>();
+            if (((slot >> 24) & 0xff) > panelMaxLevels * 6
+                || ((slot >> 16) & 0xff) > 5 || ((slot >> 8) & 0xff) > 2
+                || (slot & 0xff) > ((slot >> 8) & 0xff) * 2) {
                 qWarning() << "Slot " << Qt::hex << slot
                            << " invalid. Skipping...";
                 continue;
@@ -105,4 +105,10 @@ ConfigManager::ConfigManager(const QString configFile, QObject *parent)
     } else {
         qWarning() << "No config file found. Using default config.";
     }
+}
+
+ConfigManager::Slot ConfigManager::calcSlot(
+    quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+    return quint32(pSlot) << 24 | quint32(tSlot) << 16 | quint32(rSlot) << 8
+           | quint32(subSlot);
 }

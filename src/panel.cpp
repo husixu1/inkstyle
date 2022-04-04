@@ -70,11 +70,6 @@ QPixmap Panel::drawIcon(qint32 unitLen, quint8 tSlot, quint8 subSlot) {
     return pixmap;
 }
 
-quint16
-Panel::calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
-    return quint16(pSlot) << 12 | quint16(tSlot) << 8 | rSlot << 4 | subSlot;
-}
-
 QPoint Panel::calcRelativeCoordinate(quint8 tSlot) {
     Q_ASSERT(tSlot <= 5);
     switch (tSlot) {
@@ -170,7 +165,7 @@ Panel::Panel(Panel *parent, quint8 tSlot)
                 connect(button, &Button::mouseEnter, this, &QWidget::raise);
                 // Set the style on click
                 connect(button, &QPushButton::clicked, this, [this, i, j, k] {
-                    copyStyle(calcSlot(pSlot, i, j, k));
+                    copyStyle(ConfigManager::calcSlot(pSlot, i, j, k));
                 });
             }
         }
@@ -308,14 +303,16 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         geometry.topLeft() - geometry.toRect().topLeft(), this);
 
     // TEST: Draw an icon
-    quint16 slot = calcSlot(pSlot, tSlot, rSlot, subSlot);
-    if (config->buttons.contains(slot)) {
-        QSize iconSize(
+    if (ConfigManager::Slot slot =
+            ConfigManager::calcSlot(pSlot, tSlot, rSlot, subSlot);
+        config->buttons.contains(slot)) {
+
+        QSizeF iconSize(
             int(unitLen / 3. - 2 * qCos(R30) * gapLen),
             int(qSin(R60) * (unitLen / 3. - 2 * qCos(R30) * gapLen)));
 
         button->setIcon(drawIcon(unitLen, tSlot, subSlot));
-        button->setIconSize(iconSize);
+        button->setIconSize(iconSize.toSize());
     }
 
     return button;
@@ -467,7 +464,7 @@ void Panel::delPanel(quint8 tSlot) {
     childPanels[tSlot] = nullptr;
 }
 
-void Panel::copyStyle(quint16 slot) {
+void Panel::copyStyle(ConfigManager::Slot slot) {
     if (config->buttons.contains(slot)) {
         // Copy style associated with slot to clipboard
         QMimeData *styleSvg = new QMimeData;

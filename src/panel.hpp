@@ -51,8 +51,6 @@ public:
 
     static QPixmap drawIcon(qint32 unitLen, quint8 tSlot, quint8 subSlot);
 
-    inline static quint16
-    calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
 protected:
     /// @brief Overridden to recursively move all panels
@@ -89,7 +87,7 @@ signals:
 private slots:
     void addPanel(quint8 tSlot);
     void delPanel(quint8 tSlot);
-    void copyStyle(quint16 slot);
+    void copyStyle(ConfigManager::Slot slot);
 
 private:
     /// @brief One global config for all panels
