@@ -16,6 +16,9 @@ class Config : public QObject {
     Q_OBJECT
 
 public:
+    typedef quint32 Slot;
+    typedef QMap<QString, QString> StylesList;
+
     explicit Config(const QString &file, QObject *parent = nullptr);
 
     QColor panelBgColor;
@@ -28,36 +31,31 @@ public:
     QString defaultIconText;
 
     struct ButtonInfo {
-        /// @brief Associated ConfigManager
-        const Config &config;
-
         /// @brief This is a static svg for copy-pasting
-        const QByteArray styleSvg;
+        QByteArray styleSvg;
 
         /// @brief The icon svg provided by the user
-        const QByteArray userIconSvg;
+        QByteArray userIconSvg;
 
         /// @brief A list of key-value pairs
         /// @details Key will be one of the constant in #C::CK::BK
-        const QMap<QString, QString> styles;
+        StylesList styles;
 
         /// @brief Ids of the svg definitions used by this button
-        const QSet<QString> defIds;
+        /// @see Config::svgDefs
+        QSet<QString> defIds;
 
-        /// @brief Generate hash of this object (for caching purposes)
-        QByteArray genHash() const;
-        /// @brief Validate hash of this object (for caching purposes)
-        bool validateHash(const QByteArray &hash) const;
+        bool operator==(const ButtonInfo &other) const;
     };
-
-    typedef quint32 Slot;
 
     static Slot
     calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
     /// @brief A list of buttons
-    QHash<Slot, QSharedPointer<ButtonInfo>> buttons;
+    QHash<Slot, ButtonInfo> buttons;
+
     /// @brief A list of svg defs (e.g. gradient, pattern, marker)
+    /// @details stores: {defId, def-content}...
     QHash<QString, QString> svgDefs;
 
 private:
@@ -66,5 +64,8 @@ private:
     void parseSvgDefsConfig(const YAML::Node &config);
     void parseButtonsConfig(const YAML::Node &config);
 };
+
+size_t qHash(const Config::StylesList &styles, size_t seed = 0);
+size_t qHash(const Config::ButtonInfo &info, size_t seed = 0);
 
 #endif // CONFIGMANAGER_HPP

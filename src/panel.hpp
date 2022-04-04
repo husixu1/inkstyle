@@ -62,8 +62,11 @@ private:
     HiddenButton *addBorderButton(quint8 tSlot);
     void delBorderButton(quint8 tSlot);
 
-    /// @brief Update buttons at the border of the panel
-    void updateBorderButtons();
+    /// @brief Redraw central button according to #composedStyles
+    void updateCentralButton();
+
+    /// @brief Update #composedStyles from #activeButtons
+    void updateComposedStyles();
 
     /// @brief Update masked area
     void updateMask();
@@ -94,7 +97,9 @@ private:
     QVector<QPointF>
     genStyleButtonMask(quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
-    QPixmap drawIcon(
+    QVector<QPointF> genCentralButtonMask();
+
+    QPixmap drawStyleButtonIcon(
         quint8 tSlot, quint8 rSlot, quint8 subSlot,
         const Config::ButtonInfo &info) const;
 
@@ -103,12 +108,19 @@ private:
     /// the user does not provide a custom icon.
     /// @param size size of the icon
     /// @return The icon svg stored in a byte array
-    QByteArray genIconSvg(
+    QByteArray genStyleButtonIconSvg(
         quint8 tSlot, quint8 rSlot, quint8 subSlot,
         const Config::ButtonInfo &info) const;
 
-signals:
-    void pSlotChanged();
+    QPixmap drawCentralButtonIcon() const;
+
+    QByteArray genCentralButtonIconSvg() const;
+
+    /// @brief Tells whether this panel is currently active.
+    /// @details A panel is active if one of its button is active, or one of
+    /// its child panel is active. An active panel should not be automatically
+    /// closed when lose focus.
+    bool isActive() const;
 
 private slots:
     void addPanel(quint8 tSlot);
@@ -138,6 +150,7 @@ private:
     /// ```````````````````````````````
     typedef QHash<QPoint, Panel *> PGrid;
     /// @brief The panel grid storage. Use the alias #panelGrid instead.
+    /// @brief This member is shared by all panels in the grid.
     QSharedPointer<PGrid> _pGrid;
     /// @brief A convenient alias to (*_pGrid)
     PGrid &panelGrid;
@@ -150,10 +163,13 @@ private:
     /// @details Root panel has pSlot of 0. First-level panels (panel opened
     /// directly from root panel) has pSlot = tSlot + 1. Second and
     /// above-level panels has pSlot = parentPanel->pSlot + 6
-    quint8 pSlot;
+    const quint8 pSlot;
 
     /// @brief Parent panel of this panel
-    Panel *parentPanel;
+    Panel *const parentPanel;
+
+    /// @brief Root panel of the panel group that this panel belongs
+    Panel *const rootPanel;
 
     /// @brief The tSlot of the parent panel in which this panel resides
     quint8 tSlot;
@@ -164,8 +180,14 @@ private:
     /// @brief Style buttons, mapped to corresponding slot
     QHash<Config::Slot, QSharedPointer<Button>> styleButtons;
 
+    /// @brief record a list of active buttons
+    QSet<Config::Slot> activeButtons;
+
     /// @brief Border buttons of this panel, for expanding children panels
     QVector<QSharedPointer<HiddenButton>> borderButtons;
+
+    /// @brief The button at the very center
+    QSharedPointer<Button> centralButton;
 
     /// @brief How much should the button scale on mouse hover
     const qreal hoverScale;
@@ -174,19 +196,11 @@ private:
     /// @details Must be signed since negative computations are involved
     const qreal unitLen;
 
-    /// @brief gap between buttons
+    /// @brief Gap between buttons
     /// @details Must be signed since negative computations are involved
     const qreal gapLen;
 
-    /// @brief We cache some data for better performance/less flicker
-    /// @details cache are shared across all panels, over the entire session
-    static struct {
-        /// @brief Reduce system font loading time
-        std::unique_ptr<ResvgOptions> resvgOptions;
-        /// @brief Reuse rendered icons if config not changed
-        /// @details Stores `{slot, {buttonInfo-hash, icon}}`. The hash is used
-        /// test the validity of the buttonInfo associated with `slot`.
-        QHash<Config::Slot, QPair<QByteArray, QPixmap>> styleIcons;
-    } cache;
+    /// @brief Styles composed from #activeButtons
+    Config::StylesList composedStyles;
 };
 #endif // PANEL_H

@@ -16,6 +16,9 @@ constexpr double R30 = 30. * M_PI / 180.;
 constexpr double R45 = 45. * M_PI / 180.;
 constexpr double R60 = 60. * M_PI / 180.;
 
+/// @brief Number of icons to cache
+constexpr size_t iconCacheSize = 1000;
+
 cccp styleMimeType = "image/x-inkscape-svg";
 
 /// @brief Default button colors when no config file is provided

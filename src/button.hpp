@@ -21,6 +21,7 @@ public:
 
     const QColor &getBgColor() const;
     void setBgColor(const QColor &newBgColor);
+    bool isActive() const;
 
 protected:
     virtual void enterEvent(QEvent *e) override;
@@ -50,6 +51,8 @@ public:
 private:
     QPoint mousePos;
     bool hovering;
+    /// @brief Mouse click to toggle this flag
+    bool active;
 
     QColor bgColor;
     Q_PROPERTY(QColor bgColor READ getBgColor WRITE setBgColor)

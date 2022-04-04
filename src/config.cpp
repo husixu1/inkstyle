@@ -141,8 +141,9 @@ void Config::parseSvgDefsConfig(const YAML::Node &config) {
         if (def[K::attrs].IsDefined())
             for (const auto &attr : def[K::attrs])
                 attrs.append(QString(R"(%1="%2")")
-                                 .arg(attr.first.as<QString>())
-                                 .arg(attr.second.as<QString>()));
+                                 .arg(
+                                     attr.first.as<QString>(),
+                                     attr.second.as<QString>()));
 
         QString svgDef = QString(R"(<%1 id="%2" %3>%4</%1>)")
                              .arg(type, id, attrs.join(' '), content);
@@ -257,9 +258,7 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
         if (button[BK::customIcon].IsDefined())
             icon = button[icon].as<QString>().toUtf8();
 
-        buttons.insert(
-            slot, QSharedPointer<ButtonInfo>(
-                      new ButtonInfo{*this, styleSvg, icon, styles, defIds}));
+        buttons.insert(slot, {styleSvg, icon, styles, defIds});
     }
 }
 
@@ -286,17 +285,19 @@ Config::calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     return quint32(pSlot) << 24 | quint32(tSlot) << 16 | quint32(rSlot) << 8
            | quint32(subSlot);
 }
-
-QByteArray Config::ButtonInfo::genHash() const {
-    QCryptographicHash hash(QCryptographicHash::Md5);
-    hash.addData(QString::number(reinterpret_cast<intptr_t>(&config)).toUtf8());
-    hash.addData(styleSvg);
-    hash.addData(userIconSvg);
-    hash.addData(styles.keys().join("").toUtf8());
-    hash.addData(styles.values().join("").toUtf8());
-    return hash.result();
+bool Config::ButtonInfo::operator==(const Config::ButtonInfo &other) const {
+    return styleSvg == other.styleSvg && userIconSvg == other.userIconSvg
+           && styles == other.styles && defIds == other.defIds;
 }
 
-bool Config::ButtonInfo::validateHash(const QByteArray &hash) const {
-    return genHash() == hash;
+size_t qHash(const Config::StylesList &styles, size_t seed) {
+    size_t hash = ~(size_t)0;
+    for (auto itr = styles.begin(); itr != styles.end(); ++itr)
+        hash ^= qHash(itr.key(), seed) ^ qHash(itr.value(), seed);
+    return hash;
+}
+
+size_t qHash(const Config::ButtonInfo &info, size_t seed) {
+    return qHash(info.styleSvg, seed) ^ qHash(info.userIconSvg, seed)
+           ^ qHash(info.styles, seed) ^ qHash(info.defIds);
 }

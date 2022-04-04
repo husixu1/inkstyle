@@ -15,9 +15,9 @@ Button::Button(
     : QPushButton(parent), inactiveGeometry(geometry),
       inactiveMask(maskPolygon), hoverScale(hoverScale), centroid(centroid),
       bgOffset(bgOffset), inactiveBgColor(inactiveColor),
-      activeBgColor(activeColor), hovering(false), bgColor(inactiveBgColor),
-      animations(), geometryAnimation(this, "geometry"),
-      bgColorAnimation(this, "bgColor") {
+      activeBgColor(activeColor), hovering(false), active(false),
+      bgColor(inactiveBgColor), animations(),
+      geometryAnimation(this, "geometry"), bgColorAnimation(this, "bgColor") {
     Q_ASSERT(hoverScale > 1.);
 
     setGeometry(geometry.toRect());
@@ -31,10 +31,15 @@ Button::Button(
     bgColorAnimation.setDuration(120);
     bgColorAnimation.setStartValue(inactiveBgColor);
     animations.addAnimation(&bgColorAnimation);
+
+    // Make this button toggle-able
+    connect(this, &QPushButton::clicked, [this] {
+        active = !active;
+        startAnimation();
+    });
 }
 
 void Button::enterEvent(QEvent *) {
-
     hovering = true;
     startAnimation();
     update();
@@ -85,6 +90,10 @@ void Button::paintEvent(QPaintEvent *e) {
     QPushButton::paintEvent(e);
 }
 
+bool Button::isActive() const {
+    return active;
+}
+
 const QColor &Button::getBgColor() const {
     return bgColor;
 }
@@ -97,7 +106,7 @@ void Button::startAnimation() {
     animations.stop();
     geometryAnimation.setStartValue(geometryAnimation.currentValue());
     bgColorAnimation.setStartValue(bgColorAnimation.currentValue());
-    if (hovering) {
+    if (hovering || active) {
         raise();
         QPointF centroidOffset = centroid * (hoverScale - 1.);
         geometryAnimation.setEndValue(
