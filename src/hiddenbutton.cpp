@@ -20,6 +20,7 @@ void HiddenButton::paintEvent(QPaintEvent *e) {
     QPainter painter(this);
     painter.fillRect(rect(), QColor(255, 255, 255, 1));
 #else
-    QPushButton::paintEvent(e);
+    QPainter painter(this);
+    painter.fillRect(rect(), QColor(0, 0, 0, 0));
 #endif
 }
