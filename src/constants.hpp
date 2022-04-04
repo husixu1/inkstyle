@@ -30,6 +30,7 @@ namespace Configs {
     // current (Mar 2022) gcc 12 are still experimental
     cccp global = "global";
     cccp buttons = "buttons";
+    cccp svgDefs = "svg-defs";
     namespace Global {
         namespace Keys {
             cccp panelBgColor = "panel-background";
@@ -58,21 +59,20 @@ namespace Configs {
             cccp strokeOpacity = "stroke-opacity";
             cccp strokeWidth = "stroke-width";
             cccp strokeDashArray = "stroke-dasharray";
-            cccp strokeStart = "stroke-start";
-            cccp strokeEnd = "stroke-end";
+            cccp markerStart = "marker-start";
+            cccp markerMid = "marker-mid";
+            cccp markerEnd = "marker-end";
             cccp fill = "fill";
             cccp fillOpacity = "fill-opacity";
-            cccp fillGradient = "fill-gradient";
-            // non-standard stuff
-            cccp fillMesh = "fill-mesh";
             cccp fontFamily = "font-family";
             cccp fontSize = "font-size";
             cccp fontStyle = "font-style";
-            cccp basicStyles[] = {
-                stroke,       strokeWidth, strokeOpacity, strokeDashArray,
-                strokeStart,  strokeEnd,   fill,          fillOpacity,
-                fillGradient, fillMesh,    fontFamily,    fontSize,
-                fontStyle};
+            /// @brief keys in this array will be automatically added to
+            /// #Config::ButtonInfo::styles
+            cccp basicStyles[] = {stroke,          strokeWidth, strokeOpacity,
+                                  strokeDashArray, markerStart, markerMid,
+                                  markerEnd,       fill,        fillOpacity,
+                                  fontFamily,      fontSize,    fontStyle};
             cccp slot = "slot";
             cccp customStyle = "svg";
             cccp customIcon = "icon";
@@ -80,6 +80,16 @@ namespace Configs {
         namespace K = Keys;
     } // namespace Button
     namespace B = Button;
+    namespace SvgDefs {
+        namespace Keys {
+            cccp id = "id";
+            cccp type = "type";
+            cccp attrs = "attrs";
+            cccp svg = "svg";
+        } // namespace Keys
+        namespace K = Keys;
+    } // namespace SvgDefs
+    namespace SD = SvgDefs;
 } // namespace Configs
 namespace C = Configs;
 
