@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.5)
 project(InkStyle VERSION 0.1 LANGUAGES CXX)
 set(EXE_NAME inkstyle)
 
+if(${CMAKE_BUILD_TYPE} MATCHES Debug)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif()
+
 # SOURCES ######################################################################
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
