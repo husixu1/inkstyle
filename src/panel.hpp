@@ -38,7 +38,7 @@ public:
     /// |                                       |
     /// | C: center                             |
     /// | a: rSlot=1, b: rSlot=2                |
-    /// | Numbers in cells are subslots         |
+    /// | Numbers in cells are subSlots         |
     /// `````````````````````````````````````````
     Button *addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
@@ -60,25 +60,30 @@ protected:
     void closeEvent(QCloseEvent *event) override;
     /// @brief Overridden to update visual guides
     void paintEvent(QPaintEvent *event) override;
+    /// @brief Overridden to close all children
+    void enterEvent(QEvent *event) override;
 
 private:
+    /// @brief Update buttons at the border of the panel
+    void updateBorderButtons();
+
     /// @brief Update masked area
     void updateMask();
 
-    /// @brief Calculate asbolute position of target panel (relative to this)
+    /// @brief Calculate absolute position of target panel (relative to this)
     /// @param[in] tSlot The target panel occupies tSlot of this panel
     /// @return Coordinate of the target panel
     /// @see #panelGrid
     inline QPoint calcRelativeCoordinate(quint8 tSlot);
 
-    /// @brief Calculate asbolute position of target panel
+    /// @brief Calculate absolute position of target panel
     /// @param[in] tSlot The target panel occupies tSlot of this panel
     /// @return Absolute position of the target panel
     inline QPoint calcRelativePanelPos(quint8 tSlot);
 
     /// @brief Generate mask for a border-button
-    /// @param tSlot The theata-slot that the border-button resides
-    /// @return A list of points, which is the verteces of the mask polygon
+    /// @param tSlot The theta-slot that the border-button resides
+    /// @return A list of points, which is the vertices of the mask polygon
     /// @note The generated point coordinates are relative to this panel
     QVector<QPoint> genBorderButtonMask(quint8 tSlot);
 

@@ -6,6 +6,7 @@
 #include <QClipboard>
 #include <QCursor>
 #include <QFile>
+#include <QLayout>
 #include <QMimeData>
 #include <QMoveEvent>
 #include <QPainter>
@@ -148,30 +149,15 @@ Panel::Panel(Panel *parent, quint8 tSlot)
     }
 
     // Add style buttons
-    Button *button;
-    for (quint8 i = 0; i < 6; ++i) {
-        for (quint8 j = 1; j <= 2; ++j) {
-            for (quint8 k = 0; k < j * 2 + 1; ++k) {
-                button = addStyleButton(i, j, k);
-                // Raise for better looking
-                connect(button, &Button::mouseEnter, this, &QWidget::raise);
-                // Set the style on click
-                connect(button, &QPushButton::clicked, this, [this, i, j, k] {
-                    copyStyle(ConfigManager::calcSlot(pSlot, i, j, k));
-                });
-            }
-        }
-    }
+    for (quint8 i = 0; i < 6; ++i)
+        for (quint8 j = 1; j <= 2; ++j)
+            for (quint8 k = 0; k < j * 2 + 1; ++k)
+                addStyleButton(i, j, k);
 
     // Add border buttons, skip the occupied edge
-    for (quint8 i = 0; i < 6; ++i) {
-        if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i))) {
-            HiddenButton *borderButton = addBorderButton(i);
-            connect(borderButton, &HiddenButton::mouseEnter, this, [this, i] {
-                Panel::addPanel(i);
-            });
-        }
-    }
+    for (quint8 i = 0; i < 6; ++i)
+        if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i)))
+            addBorderButton(i);
 
     updateMask();
 }
@@ -204,7 +190,8 @@ void Panel::updateMask() {
         if (borderButtons[tSlot])
             mask += QRegion(QPolygon(genBorderButtonMask(tSlot)));
 
-    // Set mask
+    // Set new mask
+    clearMask();
     setMask(mask);
 }
 
@@ -225,7 +212,7 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     */
     // -->: the tSlot direction
     // C: center of the hexagon
-    // •: tranangle vertecies
+    // •: triangle vertices
     // 1: the 1st point
     // 2: the 2nd point
     // 3: the 3rd point
@@ -293,7 +280,7 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         geometry.toRect(), mask, hoverScale, centroid - geometry.topLeft(),
         geometry.topLeft() - geometry.toRect().topLeft(), this);
 
-    // TEST: Draw an icon
+    // Draw icon on the button
     if (ConfigManager::Slot slot =
             ConfigManager::calcSlot(pSlot, tSlot, rSlot, subSlot);
         config->buttons.contains(slot)) {
@@ -310,6 +297,14 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
         // button->setIcon(QIcon(C::SC::circleIcon));
         button->setIconSize(iconSize.toSize());
     }
+    button->show();
+
+    // Raise on mouseEnter for better looking
+    connect(button, &Button::mouseEnter, this, &QWidget::raise);
+    // Set the style on click
+    connect(button, &QPushButton::clicked, this, [this, tSlot, rSlot, subSlot] {
+        copyStyle(ConfigManager::calcSlot(pSlot, tSlot, rSlot, subSlot));
+    });
 
     return button;
 }
@@ -342,12 +337,19 @@ HiddenButton *Panel::addBorderButton(quint8 tSlot) {
 
     // Using delayed delete is necessary since it is possible that the deletion
     // is triggered during the button's own event
-    borderButtons[tSlot] = QSharedPointer<HiddenButton>(
+    QSharedPointer<HiddenButton> newButton(
         new HiddenButton(this), [](HiddenButton *b) { b->deleteLater(); });
-    borderButtons[tSlot]->setGeometry(
-        QRect(minX, minY, maxX - minX, maxY - minY));
-    borderButtons[tSlot]->setMask(mask);
 
+    // Add button to UI
+    borderButtons[tSlot] = newButton;
+    newButton->setGeometry(QRect(minX, minY, maxX - minX, maxY - minY));
+    newButton->setMask(mask);
+    newButton->show();
+
+    // Connect button functions
+    connect(newButton.get(), &HiddenButton::mouseEnter, this, [this, tSlot] {
+        Panel::addPanel(tSlot);
+    });
     return borderButtons[tSlot].data();
 }
 
@@ -370,12 +372,17 @@ void Panel::moveEvent(QMoveEvent *event) {
 }
 
 void Panel::closeEvent(QCloseEvent *) {
-    // close all child panels first
+    // Close all child panels first
     childPanels.fill(nullptr);
 
-    // close all parents
-    if (parentPanel)
-        parentPanel->close();
+    // Restore border buttons of neighboring panels
+    for (quint8 tSlot = 0; tSlot < 6; ++tSlot)
+        if (QPoint coordinate = calcRelativeCoordinate(tSlot);
+            panelGrid.contains(coordinate)) {
+            Panel *panel = panelGrid[coordinate];
+            panel->addBorderButton((tSlot + 3) % 6);
+            panel->updateMask();
+        }
 }
 
 void Panel::paintEvent(QPaintEvent *) {
@@ -417,17 +424,18 @@ void Panel::paintEvent(QPaintEvent *) {
     }
 }
 
+void Panel::enterEvent(QEvent *event) {
+    for (int tSlot = 0; tSlot < childPanels.size(); ++tSlot)
+        if (childPanels[tSlot])
+            childPanels[tSlot] = nullptr;
+}
+
 void Panel::addPanel(quint8 tSlot) {
     Q_ASSERT(tSlot <= 5);
 
     // Make sure the panel is only added once
     if (childPanels[tSlot])
         return;
-
-    // Delete corresponding border button of this
-    delBorderButton(tSlot);
-    // Update mask of this
-    updateMask();
 
     QSharedPointer<Panel> panel(new Panel(this, tSlot), [](Panel *panel) {
         panel->close();
@@ -438,12 +446,11 @@ void Panel::addPanel(quint8 tSlot) {
     panel->move(childPanels[tSlot]->pos());
     qDebug() << "Added panel " << panel->pSlot;
 
-    // Update neighbouring panels' border buttons and masks
+    // Update neighboring panels' border buttons and masks
     for (quint8 slot = 0; slot < 6; ++slot) {
         // Delete neighboring border buttons
         QPoint neighborCoordinate = panel->calcRelativeCoordinate(slot);
-        if (panelGrid.contains(neighborCoordinate)
-            && panelGrid[neighborCoordinate]) {
+        if (panelGrid.contains(neighborCoordinate)) {
             panelGrid[neighborCoordinate]->delBorderButton((slot + 3) % 6);
             panelGrid[neighborCoordinate]->updateMask();
         }
