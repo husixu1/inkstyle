@@ -23,6 +23,9 @@ public:
         const QSharedPointer<Config> &config = nullptr);
     virtual ~Panel() override;
 
+public slots:
+    void copyStyle();
+
 protected:
     /// @brief Overridden to recursively move all panels
     void moveEvent(QMoveEvent *event) override;
@@ -114,7 +117,6 @@ private:
 private slots:
     void addPanel(quint8 tSlot);
     void delPanel(quint8 tSlot);
-    void copyStyle(Config::Slot slot);
 
 private:
     /// @brief A config that is shared across all panels
@@ -187,7 +189,8 @@ private:
     /// @note The active buttons can reside on child panels of this panel.
     class ActiveButtons {
     public:
-        /// @brief append the button to the tail of the queue
+        /// @brief Try to append the button to the tail of the queue
+        /// @details If the button already exists in the queue, do nothing
         void insert(const Config::Slot &slot);
         /// @brief Remove a button from the queue
         void remove(const Config::Slot &slot);

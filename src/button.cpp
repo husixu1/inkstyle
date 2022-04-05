@@ -31,29 +31,26 @@ Button::Button(
     bgColorAnimation.setDuration(120);
     bgColorAnimation.setStartValue(inactiveBgColor);
     animations.addAnimation(&bgColorAnimation);
-
-    // Make this button toggle-able
-    connect(this, &QPushButton::clicked, [this] {
-        active = !active;
-        startAnimation();
-    });
 }
 
 void Button::enterEvent(QEvent *) {
+    // Make sure event only triggered once
+    if (hovering)
+        return;
     hovering = true;
     startAnimation();
-    update();
     emit mouseEnter();
 }
 
 void Button::leaveEvent(QEvent *) {
+    // Make sure event only triggered once (sometimes leaveEvent triggers
+    // indefinitely. Not sure why.)
+    if (!hovering)
+        return;
     hovering = false;
     startAnimation();
-    update();
     emit mouseLeave();
 }
-
-void Button::mouseMoveEvent(QMouseEvent *) {}
 
 void Button::resizeEvent(QResizeEvent *e) {
     // transform icon
@@ -92,6 +89,15 @@ void Button::paintEvent(QPaintEvent *e) {
 
 bool Button::isActive() const {
     return active;
+}
+
+bool Button::isHovering() const {
+    return hovering;
+}
+
+void Button::toggle() {
+    active = !active;
+    startAnimation();
 }
 
 const QColor &Button::getBgColor() const {

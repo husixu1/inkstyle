@@ -32,8 +32,10 @@ int main(int argc, char *argv[]) try {
     });
     QObject::connect(&hotkey, &QHotkey::released, qApp, [&]() {
         qDebug() << "Hotkey Released";
-        if (panel)
+        if (panel) {
+            panel->copyStyle();
             panel->close();
+        }
         panel = nullptr;
         Utils::pasteToInkscape();
     });

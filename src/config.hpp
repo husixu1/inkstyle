@@ -32,10 +32,10 @@ public:
 
     struct ButtonInfo {
         /// @brief This is a static svg for copy-pasting
-        QByteArray styleSvg;
+        QByteArray customStyleSvg;
 
         /// @brief The icon svg provided by the user
-        QByteArray userIconSvg;
+        QByteArray customIconSvg;
 
         /// @brief A list of key-value pairs
         /// @details Key will be one of the constant in #C::CK::BK
@@ -46,6 +46,10 @@ public:
         QSet<QString> defIds;
 
         bool operator==(const ButtonInfo &other) const;
+
+        /// @brief Merge two button info object
+        ButtonInfo &operator+=(const ButtonInfo &other);
+
         /// @brief Reset all members;
         void clear();
     };
@@ -59,6 +63,12 @@ public:
     /// @brief A list of svg defs (e.g. gradient, pattern, marker)
     /// @details stores: {defId, def-content}...
     QHash<QString, QString> svgDefs;
+
+    /// @brief Generate the style svg for copying to clipboard
+    /// @param info The button info to use to generate the tyle svg
+    /// @details If custom style is defined, use the custom style,
+    /// otherwise compose style from styles
+    QByteArray genStyleSvg(const Config::ButtonInfo &info) const;
 
 private:
     void parseConfig(const YAML::Node &config);

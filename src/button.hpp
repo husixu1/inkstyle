@@ -22,11 +22,14 @@ public:
     const QColor &getBgColor() const;
     void setBgColor(const QColor &newBgColor);
     bool isActive() const;
+    bool isHovering() const;
+
+public slots:
+    void toggle();
 
 protected:
     virtual void enterEvent(QEvent *e) override;
     virtual void leaveEvent(QEvent *e) override;
-    virtual void mouseMoveEvent(QMouseEvent *e) override;
 
     /// @brief Overridden to set mask on every resize
     virtual void resizeEvent(QResizeEvent *e) override;

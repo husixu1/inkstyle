@@ -255,12 +255,12 @@ static QByteArray _genStyleButtonSvg(
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
 
+    // Return custom icon if defined
+    if (info.customIconSvg.size() > 0)
+        return info.customIconSvg;
+
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
     QPointF centroid = button->centroid * button->hoverScale;
-
-    // Return custom icon if defined
-    if (info.userIconSvg.size() > 0)
-        return info.userIconSvg;
 
     QString svgDefs;
     QString svgContent;
@@ -347,8 +347,6 @@ QPixmap Panel::drawStyleButtonIcon(
     // Stores `{{slot, buttonInfo}, icon}`. The key is used
     // to test the validity of the buttonInfo associated with `slot`.
     static QCache<QPair<Slot, BInfo>, QPixmap> cachedIcons(C::iconCacheSize);
-    // Cache resvgOptions to reduce system font loading time
-    static std::unique_ptr<ResvgOptions> resvgOptions;
 
     // Reuse cached icon for speedup
     if (cachedIcons.contains({slot, info})) {
@@ -360,6 +358,8 @@ QPixmap Panel::drawStyleButtonIcon(
     // Draw with scaled size, otherwise icon won't scale well
     QSizeF iconSize = button->inactiveGeometry.size() * button->hoverScale;
 
+    // Cache resvgOptions to reduce system font loading time
+    static std::unique_ptr<ResvgOptions> resvgOptions;
     // Qt's svg is too weak. It cannot render clip/pattern. we use resvg here.
     if (!resvgOptions) {
         resvgOptions = std::make_unique<ResvgOptions>();
@@ -386,12 +386,16 @@ QPixmap Panel::drawStyleButtonIcon(
     return *pixmap;
 }
 
-static QByteArray genCentralButtonSvg(
+static QByteArray _genCentralButtonSvg(
     Button *button, const Config &config, const Config::ButtonInfo &info) {
     using C::R30, C::R60, C::R45;
     namespace CGK = C::C::G::K;      // button config Keys
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
+
+    // Return custom icon if defined
+    if (info.customIconSvg.size() > 0)
+        return info.customIconSvg;
 
     // Button *button = styleButtons[slot].get();
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
@@ -463,8 +467,6 @@ QPixmap Panel::drawCentralButtonIcon() const {
     // Cache rendered icons and reuse them if config not changed.
     // Stores `{composed-style-list, icon}`.
     static QCache<Config::ButtonInfo, QPixmap> cachedIcons(C::iconCacheSize);
-    // Cache resvgOptions to reduce system font loading time
-    static std::unique_ptr<ResvgOptions> resvgOptions;
 
     // Reuse cached icon for speedup
     if (cachedIcons.contains(centralButtonInfo))
@@ -475,7 +477,8 @@ QPixmap Panel::drawCentralButtonIcon() const {
     // Draw with scaled size, otherwise icon won't scale well
     QSizeF iconSize = button->inactiveGeometry.size() * button->hoverScale;
 
-    // Qt's svg is too weak. It cannot render clip/pattern. we use resvg here.
+    // Cache resvgOptions to reduce system font loading time
+    static std::unique_ptr<ResvgOptions> resvgOptions;
     if (!resvgOptions) {
         resvgOptions = std::make_unique<ResvgOptions>();
         resvgOptions->loadSystemFonts();
@@ -484,7 +487,7 @@ QPixmap Panel::drawCentralButtonIcon() const {
     }
 
     QByteArray iconSvg =
-        genCentralButtonSvg(button, *config, centralButtonInfo);
+        _genCentralButtonSvg(button, *config, centralButtonInfo);
     ResvgRenderer renderer(iconSvg, *resvgOptions);
     if (!renderer.isValid()) {
         qCritical(
@@ -683,7 +686,7 @@ Panel::Panel(Panel *parent, quint8 tSlot, const QSharedPointer<Config> &config)
             for (quint8 k = 0; k < j * 2 + 1; ++k)
                 addStyleButton(i, j, k);
 
-    // Add border buttons, skip the occupied edge
+    // Add border buttons if not exceeding max levels, skip the occupied edge
     for (quint8 i = 0; i < 6; ++i)
         if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i)))
             addBorderButton(i);
@@ -754,24 +757,30 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     }
     button->show();
 
-    // Raise on mouseEnter for better looking
-    connect(button.get(), &Button::mouseEnter, this, &QWidget::raise);
-    // Set the style on click
-    connect(button.get(), &QPushButton::clicked, this, [this, slot] {
-        // Don't capture `button` here, otherwise will cause smart pointer loop
-        // copyStyle(slot);
+    Button *rawButton = button.get();
 
-        auto action = this->styleButtons[slot]->isActive()
-                          ? &ActiveButtons::insert
-                          : &ActiveButtons::remove;
+    // Raise panel on mouseEnter for better looks
+    connect(rawButton, &Button::mouseEnter, this, &QWidget::raise);
+    // Make the button toggle-able
+    connect(rawButton, &QPushButton::clicked, rawButton, &Button::toggle);
 
-        // Update styles and central icon of all parent panels
-        for (Panel *cur = this; cur; cur = cur->parentPanel) {
-            (cur->activeButtons.*action)(slot);
-            cur->composeCentralButtonInfo();
-            cur->updateCentralButton();
-        }
-    });
+    for (Panel *panel = this; panel; panel = panel->parentPanel) {
+        // Set composed styles and central icons
+        auto updateStyles = [this, slot, panel] {
+            // Don't smart pointer here, otherwise will cause smart pointer loop
+            auto action = (this->styleButtons[slot]->isActive()
+                           || this->styleButtons[slot]->isHovering())
+                              ? &ActiveButtons::insert
+                              : &ActiveButtons::remove;
+            // Update styles and central icon of all parent panels
+            (panel->activeButtons.*action)(slot);
+            panel->composeCentralButtonInfo();
+            panel->updateCentralButton();
+        };
+        connect(rawButton, &Button::mouseEnter, this, updateStyles);
+        connect(rawButton, &Button::mouseLeave, this, updateStyles);
+        connect(rawButton, &QPushButton::clicked, this, updateStyles);
+    }
 
     return button.get();
 }
@@ -801,7 +810,8 @@ HiddenButton *Panel::addBorderButton(quint8 tSlot) {
 
     // Connect button functions
     connect(newButton.get(), &HiddenButton::mouseEnter, this, [this, tSlot] {
-        Panel::addPanel(tSlot);
+        if ((pSlot - 1) / 6 < config->panelMaxLevels - 1)
+            Panel::addPanel(tSlot);
     });
     return borderButtons[tSlot].data();
 }
@@ -814,7 +824,7 @@ void Panel::updateCentralButton() {
     // Remove central button if no icon available / is not root panel
     if (parentPanel
         || (centralButtonInfo.styles.empty()
-            && centralButtonInfo.userIconSvg.isEmpty())) {
+            && centralButtonInfo.customStyleSvg.isEmpty())) {
         centralButton = nullptr;
         return;
     }
@@ -835,25 +845,19 @@ void Panel::updateCentralButton() {
     // Draw and set icon for this button
     centralButton->setIcon(drawCentralButtonIcon());
     centralButton->setIconSize(centralButton->geometry().size());
-
     centralButton->show();
 
     // Raise on mouseEnter for better looking
     connect(centralButton.get(), &Button::mouseEnter, this, &QWidget::raise);
-    // Set the style on click
-    // connect(button.get(), &QPushButton::clicked, this, [this, slot] {
-    // });
 }
 
 void Panel::composeCentralButtonInfo() {
     centralButtonInfo.clear();
 
     // Add styles from all active buttons
-    for (const Config::Slot &slot : activeButtons.orderedList()) {
-        centralButtonInfo.styles.insert(config->buttons[slot].styles);
-        centralButtonInfo.defIds.unite(config->buttons[slot].defIds);
-    }
-    qDebug() << centralButtonInfo.styles;
+    for (const Config::Slot &slot : activeButtons.orderedList())
+        if (config->buttons.contains(slot))
+            centralButtonInfo += config->buttons[slot];
 }
 
 void Panel::moveEvent(QMoveEvent *event) {
@@ -870,7 +874,15 @@ void Panel::moveEvent(QMoveEvent *event) {
         parentPanel->move(calcRelativePanelPos((tSlot + 3) % 6));
 }
 
-void Panel::closeEvent(QCloseEvent *) {
+void Panel::closeEvent(QCloseEvent *e) {
+    // Disconnect all buttons to prevent subsequent unwanted events
+    for (const auto &button : styleButtons)
+        if (button)
+            button->disconnect();
+    for (const auto &button : borderButtons)
+        if (button)
+            button->disconnect();
+
     // Close all child panels first
     childPanels.fill(nullptr);
 
@@ -973,11 +985,13 @@ void Panel::delPanel(quint8 tSlot) {
     childPanels[tSlot] = nullptr;
 }
 
-void Panel::copyStyle(Config::Slot slot) {
-    if (config->buttons.contains(slot)) {
+void Panel::copyStyle() {
+    if (!centralButtonInfo.styles.empty()
+        || !centralButtonInfo.customStyleSvg.isEmpty()) {
         // Copy style associated with slot to clipboard
         QMimeData *styleSvg = new QMimeData;
-        styleSvg->setData(C::styleMimeType, config->buttons[slot].styleSvg);
+        styleSvg->setData(
+            C::styleMimeType, config->genStyleSvg(centralButtonInfo));
         QApplication::clipboard()->setMimeData(styleSvg);
         qDebug() << "Style copied " << styleSvg->data(C::styleMimeType);
     } else {
@@ -986,7 +1000,8 @@ void Panel::copyStyle(Config::Slot slot) {
 }
 
 void Panel::ActiveButtons::insert(const Config::Slot &slot) {
-    remove(slot);
+    if (list.contains(slot))
+        return;
 
     if (list.size()) {
         list[tail].second = slot;
