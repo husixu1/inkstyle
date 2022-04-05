@@ -835,17 +835,19 @@ void Panel::updateCentralButton() {
     QRectF geometry = mask.boundingRect();
     mask.translate(-geometry.topLeft());
 
-    // Replace central button
-    centralButton = QSharedPointer<Button>(
-        new Button(
-            geometry, mask, hoverScale, centroid - geometry.topLeft(), this,
-            config->buttonBgColorInactive, config->buttonBgColorActive),
-        [](Button *button) { button->deleteLater(); });
+    // Add a central button if not exist
+    if (!centralButton) {
+        centralButton = QSharedPointer<Button>(
+            new Button(
+                geometry, mask, hoverScale, centroid - geometry.topLeft(), this,
+                config->buttonBgColorInactive, config->buttonBgColorActive),
+            [](Button *button) { button->deleteLater(); });
+        centralButton->show();
+    }
 
     // Draw and set icon for this button
     centralButton->setIcon(drawCentralButtonIcon());
     centralButton->setIconSize(centralButton->geometry().size());
-    centralButton->show();
 
     // Raise on mouseEnter for better looking
     connect(centralButton.get(), &Button::mouseEnter, this, &QWidget::raise);
@@ -874,12 +876,12 @@ void Panel::moveEvent(QMoveEvent *event) {
         parentPanel->move(calcRelativePanelPos((tSlot + 3) % 6));
 }
 
-void Panel::closeEvent(QCloseEvent *e) {
+void Panel::closeEvent(QCloseEvent *) {
     // Disconnect all buttons to prevent subsequent unwanted events
-    for (const auto &button : styleButtons)
+    for (const auto &button : qAsConst(styleButtons))
         if (button)
             button->disconnect();
-    for (const auto &button : borderButtons)
+    for (const auto &button : qAsConst(borderButtons))
         if (button)
             button->disconnect();
 
