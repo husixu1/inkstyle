@@ -7,3 +7,6 @@
 [submodule "3rdparty/resvg"]
 	path = 3rdparty/resvg
 	url = https://github.com/RazrFalcon/resvg
+[submodule "3rdparty/pugixml"]
+	path = 3rdparty/pugixml
+	url = https://github.com/zeux/pugixml

@@ -72,6 +72,7 @@ include(ExternalProject)
 
 add_subdirectory(3rdparty/QHotkey)
 add_subdirectory(3rdparty/yaml-cpp)
+add_subdirectory(3rdparty/pugixml)
 
 # requires cargo to build resvg
 find_program(CARGO cargo REQUIRED)
@@ -109,4 +110,5 @@ target_link_directories(
 target_link_libraries(
     ${EXE_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Svg
-    qhotkey yaml-cpp ${x11_LDFLAGS} ${resvg_LIBRARIES})
+    qhotkey yaml-cpp pugixml ${resvg_LIBRARIES}
+    ${x11_LDFLAGS})
