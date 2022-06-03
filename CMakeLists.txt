@@ -30,20 +30,24 @@ set(PROJECT_SOURCES
     src/configs.cpp
     src/utils.cpp
     src/texeditor.cpp
-    src/visitorpattern.hpp
-    src/runguard.hpp
+    src/runguard.cpp
+
     # Headers
     src/button.hpp
     src/hiddenbutton.hpp
     src/panel.hpp
     src/config.hpp
     src/configs.hpp
-    src/constants.hpp
     src/utils.hpp
     src/texeditor.hpp
-    src/runguard.cpp
+    src/runguard.hpp
+    src/constants.hpp
+    src/visitorpattern.hpp
+    src/nonaccessiblewidget.hpp
+
     # Configs
     src/global.hpp.in
+
     # Resources
     res.qrc)
 

@@ -1,5 +1,6 @@
 #include "configs.hpp"
 #include "global.hpp"
+#include "nonaccessiblewidget.hpp"
 #include "panel.hpp"
 #include "runguard.hpp"
 #include "texeditor.hpp"
@@ -30,6 +31,9 @@ int main(int argc, char *argv[]) try {
     // Don't quit on last window closed
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
+
+    // Disable accessibility for all widgets to avoid crash under certain OSs
+    QAccessible::installFactory(nonAccessibleWidgetFactory);
 
     // Set app style
     QFile file(":/res/default.qss");
