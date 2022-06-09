@@ -95,7 +95,11 @@ ExternalProject_Get_property(resvg SOURCE_DIR)
 message("SOURCE DIR IS ${SOURCE_DIR}")
 set(resvg_INCLUDE_DIRS ${SOURCE_DIR}/c-api)
 set(resvg_LIBRARY_DIRS ${SOURCE_DIR}/target/release)
-set(resvg_LIBRARIES -lresvg)
+if(UNIX)
+    set(resvg_LIBRARIES -Wl,-Bstatic -lresvg -Wl,-Bdynamic)
+elseif(WIN32)
+    set(resvg_LIBRARIES resvg.dll wsock32 ws2_32 bcrypt userenv)
+endif()
 
 add_dependencies(${EXE_NAME} resvg qhotkey yaml-cpp)
 
