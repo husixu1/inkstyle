@@ -1127,14 +1127,15 @@ void Panel::composeCentralButtonInfo() {
 
 void Panel::moveEvent(QMoveEvent *event) {
     // Prevent infinite recursion.
-    if (pos() == event->oldPos())
+    if (pos() == event->pos())
         return;
 
-    // Find top-level panel
+    // Move child panels
     for (int i = 0; i < childPanels.size(); ++i)
         if (childPanels[i])
             childPanels[i]->move(calcRelativePanelPos(i));
 
+    // Move parent panel
     if (parentPanel)
         parentPanel->move(calcRelativePanelPos((tSlot + 3) % 6));
 }
