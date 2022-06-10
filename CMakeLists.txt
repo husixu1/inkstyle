@@ -56,6 +56,8 @@ set(PROJECT_SOURCES
     # Resources
     res.qrc)
 
+configure_file(src/global.hpp.in src/global.hpp)
+
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(${EXE_NAME}
         MANUAL_FINALIZATION
@@ -76,7 +78,10 @@ if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(${EXE_NAME})
 endif()
 
-configure_file(src/global.hpp.in src/global.hpp)
+# Disable debug messages in release build
+if(${CMAKE_BUILD_TYPE} MATCHES Release)
+    add_compile_definitions(QT_NO_DEBUG_OUTPUT=1)
+endif()
 
 # DEPENDENCIES ################################################################
 include(ExternalProject)
