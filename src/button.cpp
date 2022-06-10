@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 
+#include <QDebug>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -16,8 +17,10 @@ Button::Button(
       inactiveMask(maskPolygon), hoverScale(hoverScale), centroid(centroid),
       bgOffset(geometry.topLeft() - geometry.toRect().topLeft()),
       inactiveBgColor(inactiveColor), activeBgColor(activeColor),
-      hovering(false), active(false), bgColor(inactiveBgColor), animations(),
-      geometryAnimation(this, "geometry"), bgColorAnimation(this, "bgColor") {
+      hovering(false), leftClicked(false), rightClicked(false),
+      bgColor(inactiveBgColor), activationAnimations(),
+      geometryAnimation(this, "geometry"), bgColorAnimation(this, "bgColor"),
+      updateProgress(0), updateAnimation(this, "updateProgress") {
     Q_ASSERT(hoverScale > 1.);
 
     setGeometry(geometry.toRect());
@@ -26,11 +29,19 @@ Button::Button(
     // initialize animation
     geometryAnimation.setDuration(120);
     geometryAnimation.setStartValue(inactiveGeometry);
-    animations.addAnimation(&geometryAnimation);
+    activationAnimations.addAnimation(&geometryAnimation);
 
     bgColorAnimation.setDuration(120);
     bgColorAnimation.setStartValue(inactiveBgColor);
-    animations.addAnimation(&bgColorAnimation);
+    activationAnimations.addAnimation(&bgColorAnimation);
+
+    // Force repaint during the update anmation since qt won't repaint this
+    // automatically (there's no geometry update).
+    updateAnimation.setDuration(1000);
+    updateAnimation.setStartValue(0);
+    connect(
+        &updateAnimation, &QPropertyAnimation::valueChanged, this,
+        QOverload<>::of(&Button::update));
 }
 
 void Button::enterEvent(QEvent *) {
@@ -38,7 +49,7 @@ void Button::enterEvent(QEvent *) {
     if (hovering)
         return;
     hovering = true;
-    startAnimation();
+    restartActivationAnimation();
     emit mouseEnter();
 }
 
@@ -48,8 +59,33 @@ void Button::leaveEvent(QEvent *) {
     if (!hovering)
         return;
     hovering = false;
-    startAnimation();
+    restartActivationAnimation();
     emit mouseLeave();
+}
+
+void Button::mousePressEvent(QMouseEvent *e) {
+    if (e->button() == Qt::RightButton) {
+        rightClicked = true;
+        connect(
+            &updateAnimation, &QPropertyAnimation::finished, this,
+            &Button::stateUpdated);
+        restartUpdateAnimation();
+    } else {
+        // Propagate unhandeled event to parent class
+        QPushButton::mousePressEvent(e);
+    }
+}
+
+void Button::mouseReleaseEvent(QMouseEvent *e) {
+    if (e->button() == Qt::RightButton) {
+        rightClicked = false;
+        disconnect(
+            &updateAnimation, &QPropertyAnimation::finished, nullptr, nullptr);
+        restartUpdateAnimation();
+    } else {
+        // Propagate unhandeled event to parent class
+        QPushButton::mouseReleaseEvent(e);
+    }
 }
 
 void Button::resizeEvent(QResizeEvent *e) {
@@ -83,12 +119,30 @@ void Button::paintEvent(QPaintEvent *e) {
         * QTransform::fromTranslate(bgOffset.x(), bgOffset.y());
     painter.drawPolygon(inactiveMask * transform);
 
+    // Paint the border-highlighting for the update action
+    if (updateProgress > 0) {
+        qreal edgeLen = qMax(width(), height()) * 3;
+        QPainterPath clipPath;
+        clipPath.moveTo(centroid * transform);
+        clipPath.arcTo(
+            QRectF(
+                centroid * transform - QPointF(0.5 * edgeLen, 0.5 * edgeLen),
+                QSizeF(edgeLen, edgeLen)),
+            90, -updateProgress * 360);
+        clipPath.closeSubpath();
+
+        painter.setClipPath(clipPath);
+        painter.setPen(QPen(Qt::white, 5));
+        painter.setBrush(Qt::transparent);
+        painter.drawPolygon(inactiveMask * transform);
+    }
+
     // Let parent object paint icons
     QPushButton::paintEvent(e);
 }
 
 bool Button::isActive() const {
-    return active;
+    return leftClicked;
 }
 
 bool Button::isHovering() const {
@@ -96,8 +150,8 @@ bool Button::isHovering() const {
 }
 
 void Button::toggle() {
-    active = !active;
-    startAnimation();
+    leftClicked = !leftClicked;
+    restartActivationAnimation();
 }
 
 const QColor &Button::getBgColor() const {
@@ -108,11 +162,11 @@ void Button::setBgColor(const QColor &newBgColor) {
     bgColor = newBgColor;
 }
 
-void Button::startAnimation() {
-    animations.stop();
+void Button::restartActivationAnimation() {
+    activationAnimations.stop();
     geometryAnimation.setStartValue(geometryAnimation.currentValue());
     bgColorAnimation.setStartValue(bgColorAnimation.currentValue());
-    if (hovering || active) {
+    if (hovering || leftClicked) {
         raise();
         QPointF centroidOffset = centroid * (hoverScale - 1.);
         geometryAnimation.setEndValue(
@@ -126,5 +180,28 @@ void Button::startAnimation() {
         geometryAnimation.setEndValue(inactiveGeometry);
         bgColorAnimation.setEndValue(inactiveBgColor);
     }
-    animations.start();
+    activationAnimations.start();
+}
+
+qreal Button::getUpdateProgress() const {
+    return updateProgress;
+}
+
+void Button::setUpdateProgress(qreal newUpdateProgress) {
+    if (qFuzzyCompare(updateProgress, newUpdateProgress))
+        return;
+    updateProgress = newUpdateProgress;
+}
+
+void Button::restartUpdateAnimation() {
+    updateAnimation.stop();
+    updateAnimation.setStartValue(updateAnimation.currentValue());
+    if (rightClicked) {
+        raise();
+        updateAnimation.setEndValue(1.);
+    } else {
+        lower();
+        updateAnimation.setEndValue(0.);
+    }
+    updateAnimation.start();
 }

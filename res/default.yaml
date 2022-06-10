@@ -6,7 +6,7 @@ global:
   guide-color: "#ffffff"
   panel-max-levels: 2
   panel-radius: 200
-  default-icon-style: square
+  default-icon-style: circle
   default-icon-text: "S"
   # The {{FILE}} placeholder will be replaced with a temporary .tex file to which the content is written.
   tex-editor:

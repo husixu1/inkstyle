@@ -19,8 +19,6 @@ public:
         QWidget *parent = nullptr, QColor inactiveColor = C::DBC::off,
         QColor activeColor = C::DBC::on);
 
-    const QColor &getBgColor() const;
-    void setBgColor(const QColor &newBgColor);
     bool isActive() const;
     bool isHovering() const;
 
@@ -31,6 +29,9 @@ protected:
     virtual void enterEvent(QEvent *e) override;
     virtual void leaveEvent(QEvent *e) override;
 
+    virtual void mousePressEvent(QMouseEvent *e) override;
+    virtual void mouseReleaseEvent(QMouseEvent *e) override;
+
     /// @brief Overridden to set mask on every resize
     virtual void resizeEvent(QResizeEvent *e) override;
 
@@ -39,6 +40,9 @@ protected:
 signals:
     void mouseEnter();
     void mouseLeave();
+
+    /// @brief This signal is be emitted at the end of rightclick & hold action
+    void stateUpdated();
 
 public:
     const QRectF inactiveGeometry;
@@ -54,16 +58,33 @@ public:
 private:
     QPoint mousePos;
     bool hovering;
-    /// @brief Mouse click to toggle this flag
-    bool active;
+    bool leftClicked;
+    bool rightClicked;
 
     QColor bgColor;
+    const QColor &getBgColor() const;
+    void setBgColor(const QColor &newBgColor);
     Q_PROPERTY(QColor bgColor READ getBgColor WRITE setBgColor)
 
-    QParallelAnimationGroup animations;
+    QParallelAnimationGroup activationAnimations;
     QPropertyAnimation geometryAnimation;
     QPropertyAnimation bgColorAnimation;
-    void startAnimation();
+    /// @brief Restart the activation animation
+    /// @details the activation animation includes resize the button and change
+    /// the background color.
+    void restartActivationAnimation();
+
+    /// @brief Range from 0~1. 0 for no highlighting. 1 for full highlighting.
+    qreal updateProgress;
+    qreal getUpdateProgress() const;
+    void setUpdateProgress(qreal newUpdateProgress);
+    Q_PROPERTY(
+        qreal updateProgress READ getUpdateProgress WRITE setUpdateProgress)
+
+    QPropertyAnimation updateAnimation;
+    /// @brief Restart the update animation
+    /// @details The update animation includes changing the border highlighting
+    void restartUpdateAnimation();
 };
 
 #endif // BUTTON_H

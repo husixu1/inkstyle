@@ -884,6 +884,10 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     connect(rawButton, &Button::mouseEnter, this, &QWidget::raise);
     // Make the button toggle-able
     connect(rawButton, &QPushButton::clicked, rawButton, &Button::toggle);
+    // Enable button replacement (store style from clipboard)
+    connect(rawButton, &Button::stateUpdated, this, [rawButton] {
+        qDebug() << rawButton << " style updated";
+    });
 
     for (Panel *panel = this; panel; panel = panel->parentPanel) {
         // Set composed styles and central icons
