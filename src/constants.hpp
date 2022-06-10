@@ -49,7 +49,6 @@ namespace Configs {
     cccp svgDefs = "svg-defs";
     namespace Global {
         namespace Keys {
-            cccp panelBgColor = "panel-background";
             cccp buttonBgColorInactive = "button-background-inactive";
             cccp buttonBgColorActive = "button-background-active";
             cccp guideColor = "guide-color";

@@ -24,7 +24,6 @@ public:
 
     QHash<QString, QString> getSvgDefs() const;
 
-    QColor panelBgColor;
     QColor buttonBgColorInactive;
     QColor buttonBgColorActive;
     QColor guideColor;

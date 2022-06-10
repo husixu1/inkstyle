@@ -41,7 +41,6 @@ public:
         const QHash<QString, QString> &svgDefs = {});
     void saveToFile(const QString &file);
 
-    QColor panelBgColor;
     QColor buttonBgColorInactive;
     QColor buttonBgColorActive;
     QColor guideColor;
@@ -60,7 +59,7 @@ private:
     /// @details stores: {defId, def-content}...
     QHash<QString, QString> svgDefs;
 
-    /// @brief Parse global configs, initialize #panelBgColor, #guideColor, ...
+    /// @brief Parse global configs, initialize #guideColor, #panelRadius...
     /// @param config The root yaml node
     void parseGlobalConfig(const YAML::Node &config);
 

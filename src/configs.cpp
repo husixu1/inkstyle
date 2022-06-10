@@ -24,7 +24,6 @@ Configs::Configs(
         }
     };
 
-    loadEntry(panelBgColor, &Config::panelBgColor);
     loadEntry(buttonBgColorInactive, &Config::buttonBgColorInactive);
     loadEntry(buttonBgColorActive, &Config::buttonBgColorActive);
     loadEntry(guideColor, &Config::guideColor);

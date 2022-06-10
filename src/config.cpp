@@ -64,7 +64,6 @@ void Config::parseGlobalConfig(const YAML::Node &config) {
             if (gConfig[key].IsDefined())
                 config = gConfig[key].as<T>();
         };
-        loadGlobalConfig(GK::panelBgColor, panelBgColor);
         loadGlobalConfig(GK::buttonBgColorInactive, buttonBgColorInactive);
         loadGlobalConfig(GK::buttonBgColorActive, buttonBgColorActive);
         loadGlobalConfig(GK::guideColor, guideColor);
@@ -364,8 +363,6 @@ void Config::saveToFile(const QString &file) {
     {
         out << Key << CC::global << Value << BeginMap;
 
-        out << Key << GK::panelBgColor << Value
-            << panelBgColor.name(HexArgb).toStdString().c_str();
         out << Key << GK::buttonBgColorInactive << Value
             << buttonBgColorInactive.name(HexArgb).toStdString().c_str();
         out << Key << GK::buttonBgColorActive << Value

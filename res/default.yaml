@@ -1,6 +1,5 @@
 ---
 global:
-  panel-background: "#303030"
   button-background-inactive: "#60202020"
   button-background-active: "#80101010"
   guide-color: "#ffffff"
