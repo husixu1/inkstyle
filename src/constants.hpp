@@ -72,6 +72,10 @@ namespace Configs {
             cccp strokeOpacity = "stroke-opacity";
             cccp strokeWidth = "stroke-width";
             cccp strokeDashArray = "stroke-dasharray";
+            cccp strokeDashOffset = "stroke-dashoffset";
+            cccp strokeLineCap = "stroke-linecap";
+            cccp strokeLineJoin = "stroke-linejoin";
+            cccp strokeMiterLimit = "stroke-miterlimit";
             cccp markerStart = "marker-start";
             cccp markerMid = "marker-mid";
             cccp markerEnd = "marker-end";

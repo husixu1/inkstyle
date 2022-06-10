@@ -35,11 +35,8 @@ static QString _genUnkownStyleSvg(const QSizeF &size, qreal baselineHeight) {
                  .arg(size.height() * 0.5));
 }
 
-static QString _genSvgDefs(const Config &conf, const Config::ButtonInfo &info) {
-    QString svgDefs;
-    for (const QString &defId : info.defIds)
-        if (conf.svgDefs.contains(defId))
-            svgDefs.append(conf.svgDefs[defId]);
+static QString _genSvgDefs(const Config &conf, const ButtonInfo &info) {
+    QString svgDefs = info.genDefsSvg(conf.getSvgDefs());
     // Replace non-displayable attributes so that markers can be displayed.
     static QRegularExpression _ctx_re(R"(\b(context-stroke|context-fill)\b)");
     svgDefs.replace(_ctx_re, "#fff");
@@ -47,12 +44,12 @@ static QString _genSvgDefs(const Config &conf, const Config::ButtonInfo &info) {
 }
 
 static QString _genColorSvg(
-    const Config &config, const Config::ButtonInfo &info, const QPointF &bl,
+    const Config &config, const StandardButtonInfo &info, const QPointF &bl,
     const QPointF &tr, qreal radius) {
     namespace IC = C::IC;
     namespace CBK = C::C::B::K;
     namespace DIS = C::C::G::V::DIS;
-    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
 
     // Set geometry for the svg element
     QString element;
@@ -81,17 +78,17 @@ static QString _genColorSvg(
         styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
     for (const char *key : {CBK::fill, CBK::stroke, CBK::strokeDashArray})
         if (has(key))
-            styleString.append(key + (":" + info.styles[key]));
+            styleString.append(key + (":" + info.styles()[key]));
     return element.replace("{S}", styleString.join(";"));
 }
 
 static QPair<QString, QString> _genOpacitySvg(
-    const Config &config, const Config::ButtonInfo &info, const QPointF &bl,
+    const Config &config, const StandardButtonInfo &info, const QPointF &bl,
     const QPointF &tr, qreal radius) {
     namespace IC = C::IC;
     namespace CBK = C::C::B::K;
     namespace DIS = C::C::G::V::DIS;
-    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
 
     QString checkerboard =
         QString(R"(<pattern id="__checkerboard" patternUnits="userSpaceOnUse")"
@@ -151,18 +148,18 @@ static QPair<QString, QString> _genOpacitySvg(
          {CBK::fill, CBK::stroke, CBK::stroke, CBK::fillOpacity,
           CBK::strokeOpacity})
         if (has(key))
-            styleString.append(key + (":" + info.styles[key]));
+            styleString.append(key + (":" + info.styles()[key]));
     svgContent += element.replace("{S}", styleString.join(';'));
     return {svgDefs, svgContent};
 }
 
 static QString _genStrokeWidthSvg(
-    const Config &config, const Config::ButtonInfo &info, const QPointF &stl,
+    const Config &config, const StandardButtonInfo &info, const QPointF &stl,
     const QPointF &str, qreal sradius) {
     namespace IC = C::IC;
     namespace CBK = C::C::B::K;
     namespace DIS = C::C::G::V::DIS;
-    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
 
     QString element;
     if (config.defaultIconStyle == DIS::circle) {
@@ -184,17 +181,17 @@ static QString _genStrokeWidthSvg(
     QStringList styleString;
     styleString.append("fill-opacity:0");
     styleString.append(
-        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles[CBK::stroke])
+        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles()[CBK::stroke])
                          : "stroke:#fff");
     styleString.append(
-        QString("stroke-width:%1").arg(info.styles[CBK::strokeWidth]));
+        QString("stroke-width:%1").arg(info.styles()[CBK::strokeWidth]));
     return element.replace("{S}", styleString.join(';'));
 }
 
 static QString _genMarkerSvg(
-    const Config::ButtonInfo &info, const QPointF &mbl, const QPointF &mbr) {
+    const StandardButtonInfo &info, const QPointF &mbl, const QPointF &mbr) {
     namespace CBK = C::C::B::K;
-    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
 
     qreal start = mbl.x(), end = mbr.x(), mid = (mbl.x() + mbr.x()) / 2;
     if (!has(CBK::markerStart))
@@ -210,19 +207,19 @@ static QString _genMarkerSvg(
     QStringList styleString;
     styleString.append("stroke-width:2");
     styleString.append(
-        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles[CBK::stroke])
+        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles()[CBK::stroke])
                          : "stroke:#fff");
     for (const char *key : {CBK::markerStart, CBK::markerEnd, CBK::markerMid})
         if (has(key))
-            styleString.append(key + (":" + info.styles[key]));
+            styleString.append(key + (":" + info.styles()[key]));
     return element.replace("{S}", styleString.join(';'));
 }
 
 static QString _genFontSvg(
-    const Config &config, const Config::ButtonInfo &info, const QSizeF &size,
+    const Config &config, const StandardButtonInfo &info, const QSizeF &size,
     qreal baselineHeight) {
     namespace CBK = C::C::B::K;
-    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
 
     QString element =
         QString(R"(<text x="%1" y="%2" fill="#fff" style="{S}">%3</text>)")
@@ -240,7 +237,7 @@ static QString _genFontSvg(
 
     for (const char *key : {CBK::fontFamily, CBK::fontStyle})
         if (has(key))
-            styleString.append(key + (":" + info.styles[key]));
+            styleString.append(key + (":" + info.styles()[key]));
     return element.replace("{S}", styleString.join(';'));
 }
 
@@ -255,16 +252,12 @@ static QString _composeSvg(
 }
 
 static QByteArray _genStyleButtonSvg(
-    Button *button, const Config &config, const Config::ButtonInfo &info,
+    Button *button, const Config &config, const StandardButtonInfo &info,
     bool orientation) {
     using C::R30, C::R60, C::R45;
     namespace CGK = C::C::G::K;      // button config Keys
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
-
-    // Return custom icon if defined
-    if (info.customIconSvg.size() > 0)
-        return info.customIconSvg;
 
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
     QPointF centroid = button->centroid * button->hoverScale;
@@ -273,12 +266,12 @@ static QByteArray _genStyleButtonSvg(
     QString svgContent;
 
     // 0. Generate a indicator if this is a non-standard style
-    if (info.styles.empty())
+    if (info.isEmpty())
         svgContent += _genUnkownStyleSvg(
             size, size.height() * (orientation ? 0.5 : 0.85));
 
     // 1.1 Calculate common anchor points for subsequent drawing
-    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
     // color/stroke-width/marker indicator's top/bottom-left/right point
     QPointF tr, bl, str, stl, mbl, mbr;
     // color/gradient indicator's radius
@@ -342,28 +335,11 @@ static QByteArray _genStyleButtonSvg(
     return _composeSvg(size, svgDefs, svgContent).toUtf8();
 }
 
-QPixmap Panel::drawStyleButtonIcon(
-    quint8 tSlot, quint8 rSlot, quint8 subSlot,
-    const Config::ButtonInfo &info) const {
+QPixmap
+Panel::drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const {
     using Slot = Config::Slot;
-    using BInfo = Config::ButtonInfo;
-
-    Slot slot = Config::calcSlot(pSlot, tSlot, rSlot, subSlot);
-
-    // Cache rendered icons and reuse them if config not changed.
-    // Stores `{{slot, buttonInfo}, icon}`. The key is used
-    // to test the validity of the buttonInfo associated with `slot`.
-    static QCache<QPair<Slot, BInfo>, QPixmap> cachedIcons(C::iconCacheSize);
-
-    // Reuse cached icon for speedup
-    if (cachedIcons.contains({slot, info})) {
-        return *cachedIcons[{slot, info}];
-    }
-
-    // Redraw icon
-    Button *button = styleButtons[slot].get();
-    // Draw with scaled size, otherwise icon won't scale well
-    QSizeF iconSize = button->inactiveGeometry.size() * button->hoverScale;
+    using SBInfo = StandardButtonInfo;
+    using CBInfo = CustomButtonInfo;
 
     // Cache resvgOptions to reduce system font loading time
     static std::unique_ptr<ResvgOptions> resvgOptions;
@@ -375,34 +351,69 @@ QPixmap Panel::drawStyleButtonIcon(
             resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
     }
 
-    // true = pointing up, false = pointing down
-    bool orientation = (tSlot + subSlot) % 2;
-    QByteArray iconSvg = _genStyleButtonSvg(button, *config, info, orientation);
-    ResvgRenderer renderer(iconSvg, *resvgOptions);
-    if (!renderer.isValid()) {
-        qCritical(
-            "Invalid SVG generated from slot %#x:\n%s", slot,
-            iconSvg.toStdString().c_str());
-        return QPixmap();
-    }
+    Slot slot = Config::calcSlot(pSlot, tSlot, rSlot, subSlot);
 
-    QImage icon = renderer.renderToImage(iconSize.toSize());
-    QPixmap *pixmap = new QPixmap(QPixmap::fromImage(icon));
-    // Cache takes the ownership of pixmap. See QCache document.
-    cachedIcons.insert({slot, info}, pixmap);
-    return *pixmap;
+    // Get button to draw icon
+    Button *button = styleButtons[slot].get();
+    // Draw with scaled size, otherwise icon won't scale well
+    QSizeF iconSize = button->inactiveGeometry.size() * button->hoverScale;
+
+    auto render = [&](QByteArray iconSvg) -> QPixmap * {
+        ResvgRenderer renderer(iconSvg, *resvgOptions);
+        if (!renderer.isValid()) {
+            qCritical(
+                "Invalid SVG generated from slot %#x:\n%s", slot,
+                iconSvg.toStdString().c_str());
+            return nullptr;
+        }
+
+        QImage icon = renderer.renderToImage(iconSize.toSize());
+        return new QPixmap(QPixmap::fromImage(icon));
+    };
+
+    QByteArray iconSvg;
+    if (config->hasStandardButton(slot)) {
+        // Cache rendered icons and reuse them if config not changed.
+        // Stores `{{slot, buttonInfo}, icon}`. The key is used
+        // to test the validity of the buttonInfo associated with `slot`.
+        static QCache<QPair<Slot, SBInfo>, QPixmap> cache(C::iconCacheSize);
+        StandardButtonInfo info = config->getStandardButton(slot);
+
+        // Reuse cached icon for speedup
+        if (cache.contains({slot, info}))
+            return *cache[{slot, info}];
+
+        // true = pointing up, false = pointing down
+        bool orientation = (tSlot + subSlot) % 2;
+        QPixmap *pixmap =
+            render(_genStyleButtonSvg(button, *config, info, orientation));
+
+        // Cache takes the ownership of pixmap. See QCache document.
+        if (pixmap) {
+            cache.insert({slot, info}, pixmap);
+            return *pixmap;
+        }
+    } else if (config->hasCustomButton(slot)) {
+        static QCache<QPair<Slot, CBInfo>, QPixmap> cache(C::iconCacheSize);
+        CustomButtonInfo info = config->getCustomButton(slot);
+        if (cache.contains({slot, info}))
+            return *cache[{slot, info}];
+
+        QPixmap *pixmap = render(info.getIconSvg());
+        if (pixmap) {
+            cache.insert({slot, info}, pixmap);
+            return *pixmap;
+        }
+    }
+    return QPixmap();
 }
 
 static QByteArray _genCentralButtonSvg(
-    Button *button, const Config &config, const Config::ButtonInfo &info) {
+    Button *button, const Config &config, const StandardButtonInfo &info) {
     using C::R30, C::R60, C::R45;
     namespace CGK = C::C::G::K;      // button config Keys
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
-
-    // Return custom icon if defined
-    if (info.customIconSvg.size() > 0)
-        return info.customIconSvg;
 
     // Button *button = styleButtons[slot].get();
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
@@ -412,11 +423,11 @@ static QByteArray _genCentralButtonSvg(
     QString svgContent;
 
     // 0. Generate a indicator if this is a non-standard style
-    if (info.styles.empty())
+    if (info.isEmpty())
         svgContent += _genUnkownStyleSvg(size, size.height() * 0.675);
 
     // 1.1 Calculate common anchor points for subsequent drawing
-    auto has = [&](const char *k) -> bool { return info.styles.contains(k); };
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
     // color/stroke-width/marker indicator's top/bottom-left/right point
     QPointF tr, bl, str, stl, mbl, mbr;
     // color/gradient indicator's radius
@@ -462,7 +473,7 @@ static QByteArray _genCentralButtonSvg(
     if (has(CBK::markerStart) || has(CBK::markerMid) || has(CBK::markerEnd))
         svgContent += _genMarkerSvg(info, mbl, mbr);
 
-    // 6. Draw font-style indicator
+    // 6. Draw font-style indicatoR
     if (has(CBK::fontFamily) || has(CBK::fontStyle))
         svgContent += _genFontSvg(config, info, size, size.height() * 0.675);
 
@@ -473,14 +484,29 @@ static QByteArray _genCentralButtonSvg(
 QPixmap Panel::drawCentralButtonIcon() const {
     // Cache rendered icons and reuse them if config not changed.
     // Stores `{composed-style-list, icon}`.
-    static QCache<Config::ButtonInfo, QPixmap> cachedIcons(C::iconCacheSize);
+    static QCache<StandardButtonInfo, QPixmap> cachedIcons(C::iconCacheSize);
 
     // Reuse cached icon for speedup
-    if (cachedIcons.contains(centralButtonInfo))
-        return *cachedIcons[centralButtonInfo];
+    QPixmap cachedIcon;
+    bool hasCachedIcon = false;
 
-    // Redraw icon
     Button *button = centralButton.get();
+    QByteArray iconSvg;
+    centralButtonInfo->accept(ButtonInfoVisitor{
+        [&](StandardButtonInfo &info) {
+            if (cachedIcons.contains(info)) {
+                cachedIcon = *cachedIcons[info];
+                hasCachedIcon = true;
+            } else {
+                // Redraw icon
+                iconSvg = _genCentralButtonSvg(button, *config, info);
+            }
+        },
+        [&](CustomButtonInfo &info) { iconSvg = info.getIconSvg(); }});
+
+    if (hasCachedIcon)
+        return cachedIcon;
+
     // Draw with scaled size, otherwise icon won't scale well
     QSizeF iconSize = button->inactiveGeometry.size() * button->hoverScale;
 
@@ -493,8 +519,6 @@ QPixmap Panel::drawCentralButtonIcon() const {
             resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
     }
 
-    QByteArray iconSvg =
-        _genCentralButtonSvg(button, *config, centralButtonInfo);
     ResvgRenderer renderer(iconSvg, *resvgOptions);
     if (!renderer.isValid()) {
         qCritical(
@@ -506,7 +530,12 @@ QPixmap Panel::drawCentralButtonIcon() const {
     QImage icon = renderer.renderToImage(iconSize.toSize());
     QPixmap pixmap = QPixmap::fromImage(icon);
     // QCache takes the ownership of pixmap and might free memory immediately.
-    cachedIcons.insert(centralButtonInfo, new QPixmap(pixmap));
+
+    centralButtonInfo->accept(ButtonInfoVisitor{
+        [&](StandardButtonInfo &info) {
+            cachedIcons.insert(info, new QPixmap(pixmap));
+        },
+        [&](CustomButtonInfo &) {}});
     return pixmap;
 }
 
@@ -693,7 +722,8 @@ Panel::Panel(Panel *parent, quint8 tSlot, const QSharedPointer<Config> &config)
             for (quint8 k = 0; k < j * 2 + 1; ++k)
                 addStyleButton(i, j, k);
 
-    // Add border buttons if not exceeding max levels, skip the occupied edge
+    // Add border buttons if not exceeding max levels, skip the occupied
+    // edge
     for (quint8 i = 0; i < 6; ++i)
         if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i)))
             addBorderButton(i);
@@ -756,10 +786,9 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     styleButtons.insert(slot, button);
 
     // Draw icon on the button
-    if (config->buttons.contains(slot)) {
+    if (config->hasButton(slot)) {
         // Draw and set icon for this button
-        button->setIcon(
-            drawStyleButtonIcon(tSlot, rSlot, subSlot, config->buttons[slot]));
+        button->setIcon(drawStyleButtonIcon(tSlot, rSlot, subSlot));
         button->setIconSize(button->geometry().size());
     }
     button->show();
@@ -774,7 +803,8 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     for (Panel *panel = this; panel; panel = panel->parentPanel) {
         // Set composed styles and central icons
         auto updateStyles = [this, slot, panel] {
-            // Don't smart pointer here, otherwise will cause smart pointer loop
+            // Don't smart pointer here, otherwise will cause smart pointer
+            // loop
             auto action = (this->styleButtons[slot]->isActive()
                            || this->styleButtons[slot]->isHovering())
                               ? &ActiveButtons::insert
@@ -782,7 +812,8 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
             // Update styles and central icon of all parent panels
             (panel->activeButtons.*action)(slot);
             panel->composeCentralButtonInfo();
-            panel->updateCentralButton();
+            if (!panel->parentPanel)
+                panel->updateCentralButton();
         };
         connect(rawButton, &Button::mouseEnter, this, updateStyles);
         connect(rawButton, &Button::mouseLeave, this, updateStyles);
@@ -804,8 +835,8 @@ HiddenButton *Panel::addBorderButton(quint8 tSlot) {
     QRectF geometry = mask.boundingRect();
     mask.translate(-geometry.topLeft());
 
-    // Using delayed delete is necessary since it is possible that the deletion
-    // is triggered during the button's own event
+    // Using delayed delete is necessary since it is possible that the
+    // deletion is triggered during the button's own event
     QSharedPointer<HiddenButton> newButton(
         new HiddenButton(this), [](HiddenButton *b) { b->deleteLater(); });
 
@@ -829,9 +860,7 @@ void Panel::delBorderButton(quint8 tSlot) {
 
 void Panel::updateCentralButton() {
     // Remove central button if no icon available / is not root panel
-    if (parentPanel
-        || (centralButtonInfo.styles.empty()
-            && centralButtonInfo.customStyleSvg.isEmpty())) {
+    if (!centralButtonInfo || centralButtonInfo->isEmpty()) {
         centralButton = nullptr;
         return;
     }
@@ -861,12 +890,21 @@ void Panel::updateCentralButton() {
 }
 
 void Panel::composeCentralButtonInfo() {
-    centralButtonInfo.clear();
+    // Compose styles from all active buttons
+    bool isStandardStyle = true;
+    QSharedPointer<StandardButtonInfo> standardButton(new StandardButtonInfo);
+    QSharedPointer<CustomButtonInfo> customButton(new CustomButtonInfo);
 
-    // Add styles from all active buttons
     for (const Config::Slot &slot : activeButtons.orderedList())
-        if (config->buttons.contains(slot))
-            centralButtonInfo += config->buttons[slot];
+        if (isStandardStyle && config->hasStandardButton(slot)) {
+            *standardButton += config->getStandardButton(slot);
+        } else if (config->hasCustomButton(slot)) {
+            *customButton += config->getCustomButton(slot);
+            isStandardStyle = false;
+        }
+
+    isStandardStyle ? (centralButtonInfo = standardButton)
+                    : (centralButtonInfo = customButton);
 }
 
 void Panel::moveEvent(QMoveEvent *event) {
@@ -952,7 +990,8 @@ void Panel::enterEvent(QEvent *e) {
         if (childPanels[tSlot]) {
             if (!childPanels[tSlot]->isActive())
                 childPanels[tSlot] = nullptr;
-            else // Recursively call enterEvent to close all inactive children
+            else // Recursively call enterEvent to close all inactive
+                 // children
                 childPanels[tSlot]->enterEvent(e);
         }
 }
@@ -995,12 +1034,12 @@ void Panel::delPanel(quint8 tSlot) {
 }
 
 void Panel::copyStyle() {
-    if (!centralButtonInfo.styles.empty()
-        || !centralButtonInfo.customStyleSvg.isEmpty()) {
+    if (!centralButtonInfo->isEmpty()) {
         // Copy style associated with slot to clipboard
         QMimeData *styleSvg = new QMimeData;
         styleSvg->setData(
-            C::styleMimeType, config->genStyleSvg(centralButtonInfo));
+            C::styleMimeType,
+            centralButtonInfo->genStyleSvg(config->getSvgDefs()));
         QApplication::clipboard()->setMimeData(styleSvg);
         qDebug() << "Style copied " << styleSvg->data(C::styleMimeType);
     } else {

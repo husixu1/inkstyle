@@ -28,6 +28,7 @@ set(PROJECT_SOURCES
     src/panel.cpp
     src/config.cpp
     src/utils.cpp
+    src/visitorpattern.hpp
     # Headers
     src/button.hpp
     src/hiddenbutton.hpp
@@ -35,8 +36,9 @@ set(PROJECT_SOURCES
     src/config.hpp
     src/constants.hpp
     src/utils.hpp
+    # Configs
     src/global.hpp.in
-    #Resources
+    # Resources
     res.qrc)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

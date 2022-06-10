@@ -102,9 +102,8 @@ private:
 
     QVector<QPointF> genCentralButtonMask();
 
-    QPixmap drawStyleButtonIcon(
-        quint8 tSlot, quint8 rSlot, quint8 subSlot,
-        const Config::ButtonInfo &info) const;
+    QPixmap
+    drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const;
 
     QPixmap drawCentralButtonIcon() const;
 
@@ -216,6 +215,6 @@ private:
     } activeButtons;
 
     /// @brief Styles composed from #activeButtons
-    Config::ButtonInfo centralButtonInfo;
+    QSharedPointer<ButtonInfo> centralButtonInfo;
 };
 #endif // PANEL_H

@@ -3,8 +3,11 @@
 #include "utils.hpp"
 
 #include <QApplication>
+#include <QClipboard>
 #include <QFile>
 #include <QHotkey>
+#include <QMimeData>
+#include <iostream>
 
 int main(int argc, char *argv[]) try {
     // Read config
@@ -38,6 +41,20 @@ int main(int argc, char *argv[]) try {
         }
         panel = nullptr;
         Utils::pasteToInkscape();
+    });
+
+    QHotkey hotkey_2(QKeySequence("Ctrl+T"), true, &a);
+    QObject::connect(&hotkey_2, &QHotkey::activated, [&]() {
+        qDebug() << "Hotkey 2 Activated";
+        std::cout << QApplication::clipboard()
+                         ->mimeData()
+                         ->data(C::styleMimeType)
+                         .toStdString()
+                  << std::endl;
+    });
+    QObject::connect(&hotkey_2, &QHotkey::released, [&]() {
+        qDebug() << "Hotkey 2 Released";
+        // qApp->quit();
     });
 
     return a.exec();

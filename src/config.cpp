@@ -193,7 +193,7 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
                 numButtons, BK::slot, slot);
             continue;
         }
-        if (buttons.contains(slot)) {
+        if (hasButton(slot)) {
             qWarning(
                 "Button %s[%ld]:%s = %#x already registered, skipping...",
                 CC::buttons, numButtons, BK::slot, slot);
@@ -203,56 +203,51 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
         // Load button styles
         qDebug("Registering button %#x", slot);
 
-        QMap<QString, QString> styles;
-        QString styleString;
-        QByteArray customStyle;
+        // A function to get a set of defs used in styles
+        auto genDefIds = [&, this](const QString &style) -> QSet<QString> {
+            // import elements in "<defs>...</defs>" when composing button
+            // styles
+            QSet<QString> defIds;
+            static const QRegularExpression urlRegEx(
+                R"-(\burl\((?<op>['"]?)#(?<id>.*?)\k<op>\))-");
+            auto matchIter = urlRegEx.globalMatch(style);
+            while (matchIter.hasNext()) {
+                QRegularExpressionMatch match = matchIter.next();
+                QString defId = match.captured("id");
+                if (svgDefs.contains(defId) && !defIds.contains(defId)) {
+                    defIds.insert(defId);
+                    qDebug(
+                        R"(Using svg def id="%s" for button %#x)",
+                        defId.toStdString().c_str(), slot);
+                } else if (!svgDefs.contains(defId)) {
+                    qWarning(
+                        R"(Button %s[%ld]:%s = %#x using a def id="%s" which )"
+                        R"(is not defined. Skipping importing this def...)",
+                        CC::buttons, numButtons, BK::slot, slot,
+                        defId.toStdString().c_str());
+                }
+            }
+            return defIds;
+        };
 
         if (button[BK::customStyle].IsDefined()) {
             // Load non-standard styles
-            styleString = button[BK::customStyle].as<QString>().toUtf8();
-            customStyle = styleString.toUtf8();
+            QString style = button[BK::customStyle].as<QString>().toUtf8();
+            QSet<QString> defIds = genDefIds(style);
+            QByteArray customIcon;
+            if (button[BK::customIcon].IsDefined())
+                customIcon = button[BK::customIcon].as<QString>().toUtf8();
+            customButtons.insert(slot, {defIds, style.toUtf8(), customIcon});
         } else {
             // Load standard styles
-            QStringList styleList;
+            QMap<QString, QString> styles;
             for (const char *style : BK::basicStyles)
-                if (button[style].IsDefined()) {
+                if (button[style].IsDefined())
                     styles.insert(QString(style), button[style].as<QString>());
-                    styleList.append(
-                        QString(style) + ":" + button[style].as<QString>());
-                }
-
-            // Compose styles to svg
-            styleString = QString(R"(<inkscape:clipboard style="%1"/>)")
-                              .arg(styleList.join(";"));
+            QSet<QString> defIds =
+                genDefIds(QStringList(styles.begin(), styles.end()).join(";"));
+            standardButtons.insert(slot, {defIds, styles});
         }
-
-        // import elements in "<defs>...</defs>" when composing button styles
-        QSet<QString> defIds;
-        static const QRegularExpression urlRegEx(
-            R"-(\burl\((?<op>['"]?)#(?<id>.*?)\k<op>\))-");
-        auto matchIter = urlRegEx.globalMatch(styleString);
-        while (matchIter.hasNext()) {
-            QRegularExpressionMatch match = matchIter.next();
-            QString defId = match.captured("id");
-            if (svgDefs.contains(defId) && !defIds.contains(defId)) {
-                defIds.insert(defId);
-                qDebug(
-                    R"(Using svg def id="%s" for button %#x)",
-                    defId.toStdString().c_str(), slot);
-            } else if (!svgDefs.contains(defId)) {
-                qWarning(
-                    R"(Button %s[%ld]:%s = %#x using a def id="%s" which )"
-                    R"(is not defined. Skipping importing this def...)",
-                    CC::buttons, numButtons, BK::slot, slot,
-                    defId.toStdString().c_str());
-            }
-        }
-
-        QByteArray customIcon;
-        if (button[BK::customIcon].IsDefined())
-            customIcon = button[BK::customIcon].as<QString>().toUtf8();
-
-        buttons.insert(slot, {customStyle, customIcon, styles, defIds});
     }
 }
 
@@ -274,61 +269,172 @@ Config::Config(const QString &file, QObject *parent) : QObject(parent) {
     }
 }
 
+const QHash<QString, QString> &Config::getSvgDefs() const {
+    return svgDefs;
+}
+
 Config::Slot
 Config::calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     return quint32(pSlot) << 24 | quint32(tSlot) << 16 | quint32(rSlot) << 8
            | quint32(subSlot);
 }
 
-bool Config::ButtonInfo::operator==(const Config::ButtonInfo &other) const {
-    return customStyleSvg == other.customStyleSvg
-           && customIconSvg == other.customIconSvg && styles == other.styles
-           && defIds == other.defIds;
+bool Config::hasButton(const Slot &slot) const {
+    return hasCustomButton(slot) || hasStandardButton(slot);
 }
 
-Config::ButtonInfo &Config::ButtonInfo::operator+=(const ButtonInfo &other) {
-    // Merge standard styles
-    styles.insert(other.styles);
+bool Config::hasCustomButton(const Slot &slot) const {
+    return customButtons.contains(slot);
+}
+
+bool Config::hasStandardButton(const Slot &slot) const {
+    return standardButtons.contains(slot);
+}
+
+CustomButtonInfo Config::getCustomButton(const Slot &slot) const {
+    return customButtons[slot];
+}
+
+StandardButtonInfo Config::getStandardButton(const Slot &slot) const {
+    return standardButtons[slot];
+}
+
+void ButtonInfo::clear() {
+    defIds.clear();
+}
+
+ButtonInfo::operator bool() const {
+    return !isEmpty();
+}
+
+bool ButtonInfo::operator==(const ButtonInfo &other) const {
+    return defIds == other.defIds;
+}
+
+ButtonInfo &ButtonInfo::operator+=(const ButtonInfo &other) {
     defIds.unite(other.defIds);
     // Overwrite user-defined styles
+    return *this;
+}
+
+size_t ButtonInfo::hash(size_t seed) const {
+    return qHash(defIds, seed);
+}
+
+ButtonInfo::ButtonInfo(const QSet<QString> &defIds) : defIds(defIds) {}
+
+QString ButtonInfo::genDefsSvg(const QHash<QString, QString> &svgDefs) const {
+    QString defs;
+    for (const auto &id : defIds)
+        if (svgDefs.contains(id))
+            defs.append(svgDefs[id]);
+    return defs;
+}
+
+void CustomButtonInfo::clear() {
+    ButtonInfo::clear();
+    customStyleSvg.clear();
+    customIconSvg.clear();
+}
+
+bool CustomButtonInfo::isEmpty() const {
+    return customStyleSvg.isEmpty();
+}
+
+bool CustomButtonInfo::operator==(const CustomButtonInfo &other) const {
+    return this->ButtonInfo::operator==(other)
+           && customStyleSvg == other.customStyleSvg
+           && customIconSvg == other.customIconSvg;
+}
+
+CustomButtonInfo &CustomButtonInfo::operator+=(const CustomButtonInfo &other) {
+    this->ButtonInfo::operator+=(other);
     customIconSvg = other.customIconSvg;
     customStyleSvg = other.customStyleSvg;
     return *this;
 }
 
-void Config::ButtonInfo::clear() {
-    customStyleSvg.clear();
-    customIconSvg.clear();
-    styles.clear();
-    defIds.clear();
+size_t CustomButtonInfo::hash(size_t seed) const {
+    return this->ButtonInfo::hash(seed) ^ qHash(customStyleSvg, seed)
+           ^ qHash(customIconSvg, seed);
 }
 
-QByteArray Config::genStyleSvg(const Config::ButtonInfo &info) const {
+QByteArray
+CustomButtonInfo::genStyleSvg(const QHash<QString, QString> &svgDefs) const {
+    namespace BK = C::C::B::K;
+    return QString(R"(<?xml version="1.0" encoding="UTF-8"?>)"
+                   R"(<svg><defs>%1</defs>%2</svg>)")
+        .arg(genDefsSvg(svgDefs), customStyleSvg)
+        .toUtf8();
+}
+
+CustomButtonInfo::CustomButtonInfo(
+    const QSet<QString> &defIds, const QByteArray &customStyleSvg,
+    const QByteArray &customIconSvg)
+    : ButtonInfo(defIds), customStyleSvg(customStyleSvg),
+      customIconSvg(customIconSvg) {}
+
+const QByteArray &CustomButtonInfo::getIconSvg() const {
+    return customIconSvg;
+}
+
+void CustomButtonInfo::accept(ButtonInfoVisitor &visitor) {
+    visitor.visit(*this);
+}
+
+void StandardButtonInfo::clear() {
+    ButtonInfo::clear();
+    styleList.clear();
+}
+
+bool StandardButtonInfo::isEmpty() const {
+    return styleList.isEmpty();
+}
+
+bool StandardButtonInfo::operator==(const StandardButtonInfo &other) const {
+    return this->ButtonInfo::operator==(other) && styleList == other.styleList;
+}
+
+StandardButtonInfo &
+StandardButtonInfo::operator+=(const StandardButtonInfo &other) {
+    // Merge standard styles
+    this->ButtonInfo::operator+=(other);
+    styleList.insert(other.styleList);
+    return *this;
+}
+
+size_t StandardButtonInfo::hash(size_t seed) const {
+    return this->ButtonInfo::hash(seed) ^ qHash(styleList, seed);
+}
+
+QByteArray
+StandardButtonInfo::genStyleSvg(const QHash<QString, QString> &svgDefs) const {
     namespace BK = C::C::B::K;
 
     // Generate style svg content
-    QString defs, styleElement;
-    if (!info.customStyleSvg.isEmpty()) {
-        styleElement = info.customStyleSvg;
-    } else {
-        QStringList styleList;
-        for (const char *key : BK::basicStyles)
-            if (info.styles.contains(key))
-                styleList.append(key + (":" + info.styles[key]));
-        styleElement = QString(R"(<inkscape:clipboard style="%1"/>)")
-                           .arg(styleList.join(";"));
-    }
-
-    // Generate svg defs
-    for (const auto &id : info.defIds)
-        if (svgDefs.contains(id))
-            defs.append(svgDefs[id]);
+    QStringList styles;
+    for (const char *key : BK::basicStyles)
+        if (styleList.contains(key))
+            styles.append(key + (":" + styleList[key]));
 
     // Combine them as style svg
-    return QString(R"(<?xml version="1.0" encoding="UTF-8"?>)"
-                   R"(<svg><defs>%1</defs>%2</svg>)")
-        .arg(defs, styleElement)
+    return QString(
+               R"(<?xml version="1.0" encoding="UTF-8"?>)"
+               R"(<svg><defs>%1</defs><inkscape:clipboard style="%1"/></svg>)")
+        .arg(genDefsSvg(svgDefs), styles.join(";"))
         .toUtf8();
+}
+
+void StandardButtonInfo::accept(ButtonInfoVisitor &visitor) {
+    visitor.visit(*this);
+}
+
+StandardButtonInfo::StandardButtonInfo(
+    const QSet<QString> &defIds, const Config::StylesList &styles)
+    : ButtonInfo(defIds), styleList(styles) {}
+
+const Config::StylesList &StandardButtonInfo::styles() const {
+    return styleList;
 }
 
 size_t qHash(const Config::StylesList &styles, size_t seed) {
@@ -338,7 +444,6 @@ size_t qHash(const Config::StylesList &styles, size_t seed) {
     return hash;
 }
 
-size_t qHash(const Config::ButtonInfo &info, size_t seed) {
-    return qHash(info.customStyleSvg, seed) ^ qHash(info.customIconSvg, seed)
-           ^ qHash(info.styles, seed) ^ qHash(info.defIds);
+size_t qHash(const ButtonInfo &info, size_t seed) {
+    return info.hash(seed);
 }
