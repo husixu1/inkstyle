@@ -1,7 +1,7 @@
 #ifndef TEXEDITOR_HPP
 #define TEXEDITOR_HPP
 
-#include "config.hpp"
+#include "configs.hpp"
 
 #include <QObject>
 #include <QProcess>
@@ -10,7 +10,7 @@
 class TexEditor : public QObject {
     Q_OBJECT
 public:
-    TexEditor(const QSharedPointer<Config> &config);
+    TexEditor(const QSharedPointer<Configs> &configs);
     void copyTextElement(const QByteArray &content);
 
 signals:
@@ -25,7 +25,7 @@ public slots:
     void start();
 
 private:
-    QSharedPointer<Config> config;
+    QSharedPointer<Configs> configs;
     QProcess editorProcess;
     QSharedPointer<QTemporaryFile> texFile;
 };

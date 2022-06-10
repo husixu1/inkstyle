@@ -2,7 +2,7 @@
 #define PANEL_H
 
 #include "button.hpp"
-#include "config.hpp"
+#include "configs.hpp"
 #include "hiddenbutton.hpp"
 
 #include <QPushButton>
@@ -20,8 +20,7 @@ class Panel : public QWidget {
 public:
     Panel(
         Panel *parent = nullptr, quint8 tSlot = 0,
-        const QSharedPointer<Config> &config = nullptr);
-    virtual ~Panel() override;
+        const QSharedPointer<Configs> &configs = nullptr);
 
 public slots:
     void copyStyle();
@@ -113,13 +112,19 @@ private:
     /// closed when lose focus.
     bool isActive() const;
 
+    /// @brief Get style from clipboard and store it to the config file
+    void storeStyleInClipboard(quint8 tSlot, quint8 rSlot, quint8 subSlot);
+
+    static Configs::Slot
+    calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);
+
 private slots:
     void addPanel(quint8 tSlot);
     void delPanel(quint8 tSlot);
 
 private:
     /// @brief A config that is shared across all panels
-    QSharedPointer<Config> config;
+    QSharedPointer<Configs> configs;
 
     /// @brief The grid system to track all panels' locations
     /// @details
@@ -165,7 +170,7 @@ private:
     QVector<QSharedPointer<Panel>> childPanels;
 
     /// @brief Style buttons, mapped to corresponding slot
-    QHash<Config::Slot, QSharedPointer<Button>> styleButtons;
+    QHash<Configs::Slot, QSharedPointer<Button>> styleButtons;
 
     /// @brief Border buttons of this panel, for expanding children panels
     QVector<QSharedPointer<HiddenButton>> borderButtons;
@@ -190,13 +195,13 @@ private:
     public:
         /// @brief Try to append the button to the tail of the queue
         /// @details If the button already exists in the queue, do nothing
-        void insert(const Config::Slot &slot);
+        void insert(const Configs::Slot &slot);
         /// @brief Remove a button from the queue
-        void remove(const Config::Slot &slot);
+        void remove(const Configs::Slot &slot);
         /// @brief Return number of active buttons
         qsizetype size() const;
         /// @brief Return the queue
-        QList<Config::Slot> orderedList() const;
+        QList<Configs::Slot> orderedList() const;
 
         ActiveButtons() = default;
 
@@ -205,13 +210,13 @@ private:
         /// @details O(1) time for insert and remove while maintaining order.
         /// * If `prev == cur`, then `cur` is head
         /// * If `next == cur`, then `cur` is tail
-        QHash<Config::Slot, QPair<Config::Slot, Config::Slot>> list;
+        QHash<Configs::Slot, QPair<Configs::Slot, Configs::Slot>> list;
         /// @brief First active button in the deque.
         /// @details If list is empty, this value is meaningless.
-        Config::Slot head;
+        Configs::Slot head;
         /// @brief Last active button in the deque
         /// @details If list is empty, this value is meaningless.
-        Config::Slot tail;
+        Configs::Slot tail;
     } activeButtons;
 
     /// @brief Styles composed from #activeButtons

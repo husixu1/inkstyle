@@ -1,3 +1,4 @@
+#include "configs.hpp"
 #include "global.hpp"
 #include "panel.hpp"
 #include "runguard.hpp"
@@ -23,7 +24,8 @@ int main(int argc, char *argv[]) try {
     }
 
     // Read config
-    QSharedPointer<Config> config(new Config("res/inkstyle.yaml"));
+    QSharedPointer<Configs> configs(
+        new Configs("res/inkstyle.yaml", "res/inkstyle.generated.yaml"));
 
     // Don't quit on last window closed
     QApplication a(argc, argv);
@@ -41,7 +43,7 @@ int main(int argc, char *argv[]) try {
     QObject::connect(&hotkey, &QHotkey::activated, qApp, [&]() {
         qDebug() << "Hotkey Activated";
         if (!panel)
-            panel = QSharedPointer<Panel>(new Panel(nullptr, 0, config));
+            panel = QSharedPointer<Panel>(new Panel(nullptr, 0, configs));
         panel->show();
     });
     QObject::connect(&hotkey, &QHotkey::released, qApp, [&]() {
@@ -55,7 +57,7 @@ int main(int argc, char *argv[]) try {
     });
 
     QHotkey hotkey_2(QKeySequence("Ctrl+T"), true, &a);
-    TexEditor editor(config);
+    TexEditor editor(configs);
     QObject::connect(
         &hotkey_2, &QHotkey::activated, &editor, &TexEditor::start);
     QObject::connect(&editor, &TexEditor::stopped, [&](const QByteArray &data) {

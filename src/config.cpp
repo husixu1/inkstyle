@@ -47,12 +47,6 @@ struct convert<QColor> {
 };
 } // namespace YAML
 
-void Config::parseConfig(const YAML::Node &config) {
-    parseGlobalConfig(config);
-    parseSvgDefsConfig(config);
-    parseButtonsConfig(config);
-}
-
 void Config::parseGlobalConfig(const YAML::Node &config) {
     namespace CC = C::C;
     namespace GK = C::C::G::K;
@@ -276,25 +270,27 @@ Config::Config(const QString &file, QObject *parent) : QObject(parent) {
     baseConfig.open(QFile::ReadOnly);
     YAML::Node defaultConfig = YAML::Load(baseConfig.readAll().toStdString());
     baseConfig.close();
-    parseConfig(defaultConfig);
+
+    parseGlobalConfig(defaultConfig);
+    if (file.isEmpty()) {
+        // Only load svgdefs and buttons for default config (empty filename)
+        parseSvgDefsConfig(defaultConfig);
+        parseButtonsConfig(defaultConfig);
+    }
 
     // Parse user config
     if (QFile(file).exists()) {
         YAML::Node userConfig = YAML::LoadFile(file.toStdString());
-        parseConfig(userConfig);
+        parseGlobalConfig(userConfig);
+        parseSvgDefsConfig(userConfig);
+        parseButtonsConfig(userConfig);
     } else {
-        qWarning("No config file found. Using default config.");
+        qWarning("Config file %s not found.", file.toStdString().c_str());
     }
 }
 
 const QHash<QString, QString> &Config::getSvgDefs() const {
     return svgDefs;
-}
-
-Config::Slot
-Config::calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
-    return quint32(pSlot) << 24 | quint32(tSlot) << 16 | quint32(rSlot) << 8
-           | quint32(subSlot);
 }
 
 bool Config::hasButton(const Slot &slot) const {

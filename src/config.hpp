@@ -25,16 +25,14 @@ public:
     typedef quint32 Slot;
     typedef QMap<QString, QString> StylesList;
 
-    static Slot
-    calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);
-
     bool hasButton(const Slot &slot) const;
     bool hasCustomButton(const Slot &slot) const;
     bool hasStandardButton(const Slot &slot) const;
     CustomButtonInfo getCustomButton(const Slot &slot) const;
     StandardButtonInfo getStandardButton(const Slot &slot) const;
 
-    explicit Config(const QString &file, QObject *parent = nullptr);
+    /// @brief Read config from file
+    explicit Config(const QString &file = "", QObject *parent = nullptr);
 
     const QHash<QString, QString> &getSvgDefs() const;
 
@@ -57,15 +55,11 @@ private:
     /// @details stores: {defId, def-content}...
     QHash<QString, QString> svgDefs;
 
-    /// @brief Parse the config file, initialize
-    /// @param config The root yaml node
-    void parseConfig(const YAML::Node &config);
-
     /// @brief Parse global configs, initialize #panelBgColor, #guideColor, ...
     /// @param config The root yaml node
     void parseGlobalConfig(const YAML::Node &config);
 
-    /// @brief Parse global configs, #svgDefs
+    /// @brief Parse global configs, initialize #svgDefs
     /// @param config The root yaml node
     void parseSvgDefsConfig(const YAML::Node &config);
 

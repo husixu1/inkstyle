@@ -10,15 +10,15 @@
 #include <QMimeData>
 #include <QTemporaryFile>
 
-TexEditor::TexEditor(const QSharedPointer<Config> &config)
-    : QObject(nullptr), config(config) {
-    if (config->texEditor.size() == 0)
+TexEditor::TexEditor(const QSharedPointer<Configs> &configs)
+    : QObject(nullptr), configs(configs) {
+    if (configs->texEditor.size() == 0)
         qWarning("Tex editor command not set. It won't be invoked.");
 }
 
 void TexEditor::start() {
     // Set command for the process
-    const QStringList &cmd = config->texEditor;
+    const QStringList &cmd = configs->texEditor;
     if (!cmd.size())
         return;
 

@@ -27,6 +27,7 @@ set(PROJECT_SOURCES
     src/main.cpp
     src/panel.cpp
     src/config.cpp
+    src/configs.cpp
     src/utils.cpp
     src/texeditor.cpp
     src/visitorpattern.hpp
@@ -36,6 +37,7 @@ set(PROJECT_SOURCES
     src/hiddenbutton.hpp
     src/panel.hpp
     src/config.hpp
+    src/configs.hpp
     src/constants.hpp
     src/utils.hpp
     src/texeditor.hpp
