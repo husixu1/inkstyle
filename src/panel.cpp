@@ -19,6 +19,7 @@
 #include <QRegion>
 #include <QRegularExpression>
 #include <QSvgRenderer>
+#include <QToolTip>
 #include <QVector>
 #include <QtDebug>
 #include <QtMath>
@@ -170,7 +171,6 @@ static QString _genStrokeWidthSvg(
     namespace IC = C::IC;
     namespace CBK = C::C::B::K;
     namespace DIS = C::C::G::V::DIS;
-    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
 
     QString element;
     if (configs.defaultIconStyle == DIS::circle) {
@@ -201,7 +201,6 @@ static QString _genStrokeCapSvg(
     const QPointF &ce) {
     namespace IC = C::IC;
     namespace CBK = C::C::B::K;
-    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
 
     QString element =
         QString(R"(<path d="M %1 %2 L %3 %4 L %5 %6" style="{S}"/>)")
@@ -1080,7 +1079,8 @@ void Panel::updateCentralButton() {
     if (!centralButton) {
         centralButton = QSharedPointer<Button>(
             new Button(
-                geometry, mask, hoverScale, centroid - geometry.topLeft(), this,
+                geometry, mask, hoverScale * .5 + .5,
+                centroid - geometry.topLeft(), this,
                 configs->buttonBgColorInactive, configs->buttonBgColorActive),
             [](Button *button) { button->deleteLater(); });
         centralButton->show();
@@ -1089,6 +1089,25 @@ void Panel::updateCentralButton() {
     // Draw and set icon for this button
     centralButton->setIcon(drawCentralButtonIcon());
     centralButton->setIconSize(centralButton->geometry().size());
+
+    // Set tooltip for this button
+    centralButtonInfo->accept(ButtonInfoVisitor{
+        [&](const StandardButtonInfo &bi) {
+            QStringList styles;
+            for (const QString &key : bi.styles().keys())
+                styles.append(key + ": " + bi.styles().value(key));
+            centralButton->setToolTip(styles.join('\n'));
+        },
+        [&](const CustomButtonInfo &bi) {
+            centralButton->setToolTip(bi.getStyleSvg());
+        }});
+    connect(centralButton.data(), &Button::mouseEnter, this, [this] {
+        if (centralButton)
+            QToolTip::showText(QCursor::pos(), centralButton->toolTip());
+    });
+    connect(centralButton.data(), &Button::mouseLeave, [] {
+        QToolTip::hideText();
+    });
 
     // Raise on mouseEnter for better looking
     connect(centralButton.get(), &Button::mouseEnter, this, &QWidget::raise);
@@ -1215,7 +1234,7 @@ void Panel::addPanel(quint8 tSlot) {
     if (childPanels[tSlot])
         return;
 
-    QSharedPointer<Panel> panel(new Panel(this, tSlot), [this](Panel *panel) {
+    QSharedPointer<Panel> panel(new Panel(this, tSlot), [](Panel *panel) {
         panel->close();
         panel->deleteLater();
     });
