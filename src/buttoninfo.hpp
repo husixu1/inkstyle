@@ -32,7 +32,8 @@ public:
     virtual size_t hash(size_t seed = 0) const;
 
     ButtonInfo() = default;
-    explicit ButtonInfo(const QSet<QString> &defIds);
+    explicit ButtonInfo(
+        const QSet<QString> &defIds, const QByteArray &customIconSvg);
 
     /// @brief Generate the style svg for copying to clipboard
     /// @param svgDefs A map that map the id of defs to their bodies
@@ -43,10 +44,16 @@ public:
     /// @param svgDefs A map that map the id of defs to their bodies
     QString genDefsSvg(const QHash<QString, QString> &svgDefs) const;
 
+    /// @brief Get #customIconSvg. Returns empty string if not available.
+    const QByteArray &getIconSvg() const;
+
 private:
     /// @brief Ids of the svg definitions used by this button
     /// @see Config::svgDefs
     QSet<QString> defIds;
+
+    /// @brief The icon svg provided by the user
+    QByteArray customIconSvg;
 };
 
 class CustomButtonInfo : public ButtonInfo {
@@ -66,14 +73,10 @@ public:
         const QByteArray &customIconSvg);
 
     const QByteArray &getStyleSvg() const;
-    const QByteArray &getIconSvg() const;
 
 private:
     /// @brief This is a static svg for copy-pasting
     QByteArray customStyleSvg;
-
-    /// @brief The icon svg provided by the user
-    QByteArray customIconSvg;
 };
 
 class StandardButtonInfo : public ButtonInfo {
@@ -89,7 +92,8 @@ public:
 
     StandardButtonInfo() = default;
     StandardButtonInfo(
-        const QSet<QString> &defIds, const Config::StylesList &styles);
+        const QSet<QString> &defIds, const Config::StylesList &styles,
+        const QByteArray &customIconSvg);
 
     const Config::StylesList &styles() const;
 

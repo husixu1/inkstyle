@@ -29,7 +29,8 @@ uint qHash(const QPoint &point, uint seed = 0) {
     return qHash(QPair<int, int>(point.x(), point.y()), seed);
 }
 
-static QString _genUnkownStyleSvg(const QSizeF &size, qreal baselineHeight) {
+static QString _genQuestionMarkSvg(Button *button, qreal baselineHeight) {
+    QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
     return QString(R"(<text x="%1" y="%2" fill="#fff" style="%3">?</text>)")
         .arg(size.width() * 0.5)
         .arg(baselineHeight)
@@ -302,6 +303,13 @@ static QString _composeSvg(
         .arg(svgDefs, svgContent);
 }
 
+static QByteArray _genUnknownStyleSvg(Button *button, bool orientation) {
+    QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
+    qreal baselineHeight = size.height() * (orientation ? 0.5 : 0.85);
+    return _composeSvg(size, {}, _genQuestionMarkSvg(button, baselineHeight))
+        .toUtf8();
+}
+
 static QByteArray _genStyleButtonSvg(
     Button *button, const Configs &configs, const StandardButtonInfo &info,
     bool orientation) {
@@ -316,9 +324,9 @@ static QByteArray _genStyleButtonSvg(
     QString svgContent;
 
     // 0. Generate a indicator if this is a non-standard style
+    qreal baselineHeight = size.height() * (orientation ? 0.5 : 0.85);
     if (info.isEmpty())
-        svgContent += _genUnkownStyleSvg(
-            size, size.height() * (orientation ? 0.5 : 0.85));
+        svgContent += _genQuestionMarkSvg(button, baselineHeight);
 
     // 1.1 Calculate common anchor points for subsequent drawing
     auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
@@ -438,6 +446,8 @@ Panel::drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const {
     };
 
     QByteArray iconSvg;
+    // true = pointing up, false = pointing down
+    bool orientation = (tSlot + subSlot) % 2;
     if (configs->hasStandardButton(slot)) {
         // Cache rendered icons and reuse them if configs not changed.
         // Stores `{{slot, buttonInfo}, icon}`. The key is used
@@ -449,10 +459,10 @@ Panel::drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const {
         if (cache.contains({slot, info}))
             return *cache[{slot, info}];
 
-        // true = pointing up, false = pointing down
-        bool orientation = (tSlot + subSlot) % 2;
-        QPixmap *pixmap =
-            render(_genStyleButtonSvg(button, *configs, info, orientation));
+        QPixmap *pixmap = render(
+            info.getIconSvg().isEmpty()
+                ? _genStyleButtonSvg(button, *configs, info, orientation)
+                : info.getIconSvg());
 
         // Cache takes the ownership of pixmap. See QCache document.
         if (pixmap) {
@@ -465,7 +475,10 @@ Panel::drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const {
         if (cache.contains({slot, info}))
             return *cache[{slot, info}];
 
-        QPixmap *pixmap = render(info.getIconSvg());
+        QPixmap *pixmap = render(
+            info.getIconSvg().isEmpty()
+                ? _genUnknownStyleSvg(button, orientation)
+                : info.getIconSvg());
         if (pixmap) {
             cache.insert({slot, info}, pixmap);
             return *pixmap;
@@ -491,7 +504,7 @@ static QByteArray _genCentralButtonSvg(
 
     // 0. Generate a indicator if this is a non-standard style
     if (info.isEmpty())
-        svgContent += _genUnkownStyleSvg(size, size.height() * 0.675);
+        svgContent += _genQuestionMarkSvg(button, size.height() * 0.675);
 
     // 1.1 Calculate common anchor points for subsequent drawing
     auto has = [&](const char *k) -> bool { return info.styles().contains(k); };

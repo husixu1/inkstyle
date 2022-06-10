@@ -74,20 +74,23 @@ void Config::parseGlobalConfig(const YAML::Node &config) {
 
         // The value of texEditor is a string list
         if (gConfig[GK::texEditor].IsDefined()) {
-            if (!gConfig[GK::texEditor].IsSequence())
+            texEditor.clear();
+            if (gConfig[GK::texEditor].IsSequence()) {
+                size_t cmdCount = 0;
+                for (const YAML::Node &cmd : gConfig[GK::texEditor]) {
+                    if (!cmd.IsScalar()) {
+                        qWarning(
+                            R"(%s:%s[%ld] is not a string, skipping...)",
+                            CC::global, GK::texEditor, cmdCount);
+                        texEditor.clear();
+                    }
+                    texEditor.append(cmd.as<QString>());
+                    ++cmdCount;
+                }
+            } else {
                 qWarning(
                     R"("%s:%s" is not a list, skipping...)", CC::global,
                     GK::texEditor);
-            size_t cmdCount = 0;
-            for (const YAML::Node &cmd : gConfig[GK::texEditor]) {
-                if (!cmd.IsScalar()) {
-                    qWarning(
-                        R"(%s:%s[%ld] is not a string, skipping)", CC::global,
-                        GK::texEditor, cmdCount);
-                    texEditor.clear();
-                }
-                texEditor.append(cmd.as<QString>());
-                ++cmdCount;
             }
         }
 
@@ -243,13 +246,15 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
             return defIds;
         };
 
+        // Get custom icon if available
+        QByteArray customIcon;
+        if (button[BK::customIcon].IsDefined())
+            customIcon = button[BK::customIcon].as<QString>().toUtf8();
+
         if (button[BK::customStyle].IsDefined()) {
             // Load non-standard styles
             QString style = button[BK::customStyle].as<QString>().toUtf8();
             QSet<QString> defIds = genDefIds(style);
-            QByteArray customIcon;
-            if (button[BK::customIcon].IsDefined())
-                customIcon = button[BK::customIcon].as<QString>().toUtf8();
             customButtons.insert(slot, {defIds, style.toUtf8(), customIcon});
         } else {
             // Load standard styles
@@ -259,7 +264,7 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
                     styles.insert(QString(style), button[style].as<QString>());
             QSet<QString> defIds =
                 genDefIds(QStringList(styles.begin(), styles.end()).join(";"));
-            standardButtons.insert(slot, {defIds, styles});
+            standardButtons.insert(slot, {defIds, styles, customIcon});
         }
     }
 }
@@ -340,7 +345,7 @@ void Config::updateStyle(
             stylesToSave.insert(QString(key), styles[key]);
     QSet<QString> defIds =
         genDefIds(QStringList(styles.begin(), styles.end()).join(";"));
-    standardButtons.insert(slot, {defIds, stylesToSave});
+    standardButtons.insert(slot, {defIds, stylesToSave, {}});
 }
 
 void Config::saveToFile(const QString &file) {
@@ -351,7 +356,7 @@ void Config::saveToFile(const QString &file) {
 
     using QColor::HexArgb;
     using YAML::BeginDoc, YAML::EndDoc, YAML::BeginMap, YAML::EndMap,
-        YAML::BeginSeq, YAML::EndSeq, YAML::Key, YAML::Value;
+        YAML::BeginSeq, YAML::EndSeq, YAML::Key, YAML::Value, YAML::Hex;
 
     // Save to file
     YAML::Emitter out;
@@ -388,7 +393,7 @@ void Config::saveToFile(const QString &file) {
         out << Key << CC::buttons << Value << BeginSeq;
         for (auto itr = standardButtons.constKeyValueBegin();
              itr != standardButtons.constKeyValueEnd(); ++itr) {
-            out << BeginMap << Key << BK::slot << Value << itr->first;
+            out << BeginMap << Key << BK::slot << Value << Hex << itr->first;
             const StylesList &styleList = itr->second.styles();
             for (auto styleItr = styleList.constKeyValueBegin();
                  styleItr != styleList.constKeyValueEnd(); ++styleItr)

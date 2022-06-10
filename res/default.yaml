@@ -104,6 +104,8 @@ buttons:
         </g>
       </g>
       </svg>
+  - slot: 0x00040203
+    svg: ""
 svg-defs:
   - id: grid-5x5-45
     type: pattern

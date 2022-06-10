@@ -6,6 +6,7 @@
 
 void ButtonInfo::clear() {
     defIds.clear();
+    customIconSvg.clear();
 }
 
 ButtonInfo::operator bool() const {
@@ -13,20 +14,23 @@ ButtonInfo::operator bool() const {
 }
 
 bool ButtonInfo::operator==(const ButtonInfo &other) const {
-    return defIds == other.defIds;
+    return defIds == other.defIds && customIconSvg == other.customIconSvg;
 }
 
 ButtonInfo &ButtonInfo::operator+=(const ButtonInfo &other) {
-    defIds.unite(other.defIds);
     // Overwrite user-defined styles
+    defIds.unite(other.defIds);
+    customIconSvg = other.customIconSvg;
     return *this;
 }
 
 size_t ButtonInfo::hash(size_t seed) const {
-    return qHash(defIds, seed);
+    return qHash(defIds, seed) ^ qHash(customIconSvg, seed);
 }
 
-ButtonInfo::ButtonInfo(const QSet<QString> &defIds) : defIds(defIds) {}
+ButtonInfo::ButtonInfo(
+    const QSet<QString> &defIds, const QByteArray &customIconSvg)
+    : defIds(defIds), customIconSvg(customIconSvg) {}
 
 QString ButtonInfo::genDefsSvg(const QHash<QString, QString> &svgDefs) const {
     // Recursively add svg definitions and avoid duplicates
@@ -57,10 +61,13 @@ QString ButtonInfo::genDefsSvg(const QHash<QString, QString> &svgDefs) const {
     return defs;
 }
 
+const QByteArray &ButtonInfo::getIconSvg() const {
+    return customIconSvg;
+}
+
 void CustomButtonInfo::clear() {
     ButtonInfo::clear();
     customStyleSvg.clear();
-    customIconSvg.clear();
 }
 
 bool CustomButtonInfo::isEmpty() const {
@@ -69,20 +76,17 @@ bool CustomButtonInfo::isEmpty() const {
 
 bool CustomButtonInfo::operator==(const CustomButtonInfo &other) const {
     return this->ButtonInfo::operator==(other)
-           && customStyleSvg == other.customStyleSvg
-           && customIconSvg == other.customIconSvg;
+           && customStyleSvg == other.customStyleSvg;
 }
 
 CustomButtonInfo &CustomButtonInfo::operator+=(const CustomButtonInfo &other) {
     this->ButtonInfo::operator+=(other);
-    customIconSvg = other.customIconSvg;
     customStyleSvg = other.customStyleSvg;
     return *this;
 }
 
 size_t CustomButtonInfo::hash(size_t seed) const {
-    return this->ButtonInfo::hash(seed) ^ qHash(customStyleSvg, seed)
-           ^ qHash(customIconSvg, seed);
+    return this->ButtonInfo::hash(seed) ^ qHash(customStyleSvg, seed);
 }
 
 QByteArray
@@ -97,15 +101,10 @@ CustomButtonInfo::genStyleSvg(const QHash<QString, QString> &svgDefs) const {
 CustomButtonInfo::CustomButtonInfo(
     const QSet<QString> &defIds, const QByteArray &customStyleSvg,
     const QByteArray &customIconSvg)
-    : ButtonInfo(defIds), customStyleSvg(customStyleSvg),
-      customIconSvg(customIconSvg) {}
+    : ButtonInfo(defIds, customIconSvg), customStyleSvg(customStyleSvg) {}
 
 const QByteArray &CustomButtonInfo::getStyleSvg() const {
     return customStyleSvg;
-}
-
-const QByteArray &CustomButtonInfo::getIconSvg() const {
-    return customIconSvg;
 }
 
 void CustomButtonInfo::accept(ButtonInfoVisitor &visitor) {
@@ -160,8 +159,9 @@ void StandardButtonInfo::accept(ButtonInfoVisitor &visitor) {
 }
 
 StandardButtonInfo::StandardButtonInfo(
-    const QSet<QString> &defIds, const Config::StylesList &styles)
-    : ButtonInfo(defIds), styleList(styles) {}
+    const QSet<QString> &defIds, const Config::StylesList &styles,
+    const QByteArray &customIconSvg)
+    : ButtonInfo(defIds, customIconSvg), styleList(styles) {}
 
 const Config::StylesList &StandardButtonInfo::styles() const {
     return styleList;
