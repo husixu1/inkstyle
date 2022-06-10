@@ -8,6 +8,11 @@ global:
   panel-radius: 200
   default-icon-style: square
   default-icon-text: "S"
+  # The {{FILE}} placeholder will be replaced with a temporary .tex file to which the content is written.
+  tex-editor:
+    - bash
+    - -c
+    - konsole --geometry "800x400$(xdotool getmouselocation | sed -e 's/x:/+/;s/ y:/+/;s/ screen.*$//')" -e vim {{FILE}} +star
 buttons:
   - slot: 0x00000100
     stroke: "#ffffff"

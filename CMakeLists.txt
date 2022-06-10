@@ -28,6 +28,7 @@ set(PROJECT_SOURCES
     src/panel.cpp
     src/config.cpp
     src/utils.cpp
+    src/texeditor.cpp
     src/visitorpattern.hpp
     src/runguard.hpp
     # Headers
@@ -37,6 +38,7 @@ set(PROJECT_SOURCES
     src/config.hpp
     src/constants.hpp
     src/utils.hpp
+    src/texeditor.hpp
     src/runguard.cpp
     # Configs
     src/global.hpp.in

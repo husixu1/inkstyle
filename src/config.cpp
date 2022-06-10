@@ -77,6 +77,25 @@ void Config::parseGlobalConfig(const YAML::Node &config) {
         loadGlobalConfig(GK::defaultIconStyle, defaultIconStyle);
         loadGlobalConfig(GK::defaultIconText, defaultIconText);
 
+        // The value of texEditor is a string list
+        if (gConfig[GK::texEditor].IsDefined()) {
+            if (!gConfig[GK::texEditor].IsSequence())
+                qWarning(
+                    R"("%s:%s" is not a list, skipping...)", CC::global,
+                    GK::texEditor);
+            size_t cmdCount = 0;
+            for (const YAML::Node &cmd : gConfig[GK::texEditor]) {
+                if (!cmd.IsScalar()) {
+                    qWarning(
+                        R"(%s:%s[%ld] is not a string, skipping)", CC::global,
+                        GK::texEditor, cmdCount);
+                    texEditor.clear();
+                }
+                texEditor.append(cmd.as<QString>());
+                ++cmdCount;
+            }
+        }
+
         // Check sanity of global config
         if (!QSet<QString>({DIS::circle, DIS::square})
                  .contains(defaultIconStyle)) {
@@ -183,7 +202,6 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
                 numButtons);
 
         // Check for validity and availability of slots
-        // TODO: use a function to parse p/t/r/sub-slot
         Slot slot = button[BK::slot].as<Slot>();
         if (((slot >> 24) & 0xff) > panelMaxLevels * 6
             || ((slot >> 16) & 0xff) > 5 || ((slot >> 8) & 0xff) > 2

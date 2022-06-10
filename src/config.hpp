@@ -46,6 +46,7 @@ public:
     quint32 panelRadius;
     QString defaultIconStyle;
     QString defaultIconText;
+    QStringList texEditor;
 
 private:
     /// @brief A list of buttons

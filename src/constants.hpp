@@ -57,7 +57,7 @@ namespace Configs {
             cccp panelRadius = "panel-radius";
             cccp defaultIconStyle = "default-icon-style";
             cccp defaultIconText = "default-icon-text";
-            cccp vimCommand = "vim-command";
+            cccp texEditor = "tex-editor";
         } // namespace Keys
         namespace K = Keys;
         namespace Values {

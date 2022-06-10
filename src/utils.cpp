@@ -62,7 +62,7 @@ static HWND findInkscapeWindow() {
     return nullptr;
 }
 
-void Utils::pasteToInkscape() {
+void Utils::pasteStyleToInkscape() {
     if (HWND inkscape = findInkscapeWindow(); inkscape) {
         qDebug() << "Pasting style to" << inkscape;
 
@@ -100,6 +100,38 @@ void Utils::pasteToInkscape() {
     }
 }
 
+void Utils::pasteElementToInkscape() {
+    if (HWND inkscape = findInkscapeWindow(); inkscape) {
+        qDebug() << "Pasting style to" << inkscape;
+
+        // Windows assume that keyboard input goes to the foreground window,
+        // and seems there's no reliable way to send key combinations to a
+        // background window.
+        if (!SetForegroundWindow(inkscape)) {
+            qInfo() << "Cannot bring inkscape window to foreground";
+            return;
+        }
+
+        INPUT inputs[4] = {};
+        ZeroMemory(inputs, sizeof(inputs));
+
+        inputs[0].type = INPUT_KEYBOARD;
+        inputs[0].ki.wVk = VK_CONTROL;
+        inputs[1].type = INPUT_KEYBOARD;
+        inputs[1].ki.wVk = 0x56;
+
+        inputs[2].type = INPUT_KEYBOARD;
+        inputs[2].ki.wVk = 0x56;
+        inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[3].type = INPUT_KEYBOARD;
+        inputs[3].ki.wVk = VK_CONTROL;
+        inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+
+        SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+    } else {
+        qInfo() << "Inkscape window not found";
+    }
+}
 #else // Linux
 
 #    include <X11/Xlib.h>
@@ -158,7 +190,7 @@ static Window findInkscapeWindow(Display *display) {
     return 0;
 }
 
-void Utils::pasteToInkscape() {
+void Utils::pasteStyleToInkscape() {
     Display *display = XOpenDisplay(nullptr);
     auto cleanup = qScopeGuard([&] {
         if (display)
@@ -182,6 +214,43 @@ void Utils::pasteToInkscape() {
         event.same_screen = True;
         event.keycode = XKeysymToKeycode(display, XK_v);
         event.state = ControlMask | ShiftMask;
+
+        event.type = KeyPress;
+        XSendEvent(display, inkscape, False, None, (XEvent *)&event);
+
+        event.type = KeyRelease;
+        XSendEvent(display, inkscape, False, None, (XEvent *)&event);
+
+        XFlush(display);
+    } else {
+        qInfo() << "Inkscape window not found" << inkscape;
+    }
+}
+
+void Utils::pasteElementToInkscape() {
+    Display *display = XOpenDisplay(nullptr);
+    auto cleanup = qScopeGuard([&] {
+        if (display)
+            XCloseDisplay(display);
+    });
+
+    if (Window inkscape = findInkscapeWindow(display); inkscape) {
+        qDebug() << "Pasting style to" << inkscape;
+
+        // Press and release Ctrl-v
+        XKeyEvent event;
+        event.display = display;
+        event.window = inkscape;
+        event.root = XDefaultRootWindow(display);
+        event.subwindow = None;
+        event.time = CurrentTime;
+        event.x = 0;
+        event.y = 0;
+        event.x_root = 0;
+        event.y_root = 0;
+        event.same_screen = True;
+        event.keycode = XKeysymToKeycode(display, XK_v);
+        event.state = ControlMask;
 
         event.type = KeyPress;
         XSendEvent(display, inkscape, False, None, (XEvent *)&event);

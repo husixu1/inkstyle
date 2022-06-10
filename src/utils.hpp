@@ -4,8 +4,11 @@
 namespace Utils {
 
 /// @brief Send Ctrl+Shift+V to the first inkscape window found
-void pasteToInkscape();
+void pasteStyleToInkscape();
 
+void copyFromInkscape();
+
+void pasteElementToInkscape();
 } // namespace Utils
 
 #endif // UTILS_HPP

@@ -1,6 +1,7 @@
 #include "global.hpp"
 #include "panel.hpp"
 #include "runguard.hpp"
+#include "texeditor.hpp"
 #include "utils.hpp"
 
 #include <QApplication>
@@ -9,6 +10,7 @@
 #include <QHotkey>
 #include <QMenu>
 #include <QMimeData>
+#include <QProcess>
 #include <QSystemTrayIcon>
 #include <iostream>
 
@@ -49,20 +51,20 @@ int main(int argc, char *argv[]) try {
             panel->close();
         }
         panel = nullptr;
-        Utils::pasteToInkscape();
+        Utils::pasteStyleToInkscape();
     });
 
     QHotkey hotkey_2(QKeySequence("Ctrl+T"), true, &a);
-    QObject::connect(&hotkey_2, &QHotkey::activated, [&]() {
-        qDebug() << "Hotkey 2 Activated";
-        std::cout << QApplication::clipboard()
-                         ->mimeData()
-                         ->data(C::styleMimeType)
-                         .toStdString()
-                  << std::endl;
-    });
-    QObject::connect(&hotkey_2, &QHotkey::released, [&]() {
-        qDebug() << "Hotkey 2 Released";
+    TexEditor editor(config);
+    QObject::connect(
+        &hotkey_2, &QHotkey::activated, &editor, &TexEditor::start);
+    QObject::connect(&editor, &TexEditor::stopped, [&](const QByteArray &data) {
+        if (!data.trimmed().size()) {
+            qInfo("Content empty. Nothing copied");
+            return;
+        }
+        editor.copyTextElement(data.trimmed());
+        Utils::pasteElementToInkscape();
     });
 
     // Create the tray icon
