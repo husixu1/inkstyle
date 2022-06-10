@@ -137,57 +137,65 @@ void Utils::pasteElementToInkscape() {
 #    include <X11/Xlib.h>
 #    include <X11/Xutil.h>
 
-static Window findInkscapeWindow(Display *display) {
-    auto isInkscapeWindow = [](Display *display, Window window) -> bool {
-        QString wmClass, wmName;
+static bool isInkscapeWindow(Display *display, Window window) {
+    QString wmClass, wmName;
 
-        // Get class hint
-        XClassHint classHint = {nullptr, nullptr};
-        if (!XGetClassHint(display, window, &classHint))
-            return false;
-        if (classHint.res_class) {
-            wmClass = classHint.res_class;
-            XFree(classHint.res_class);
-        }
-        if (classHint.res_name) {
-            wmName = classHint.res_name;
-            XFree(classHint.res_name);
-        }
+    // Get class hint
+    XClassHint classHint = {nullptr, nullptr};
+    if (!XGetClassHint(display, window, &classHint))
+        return false;
+    if (classHint.res_class) {
+        wmClass = classHint.res_class;
+        XFree(classHint.res_class);
+    }
+    if (classHint.res_name) {
+        wmName = classHint.res_name;
+        XFree(classHint.res_name);
+    }
 
-        // Get window attributes
-        XWindowAttributes attrs;
-        if (!XGetWindowAttributes(display, window, &attrs))
-            return false;
+    // Get window attributes
+    XWindowAttributes attrs;
+    if (!XGetWindowAttributes(display, window, &attrs))
+        return false;
 
-        return (wmName.contains("inkscape") && attrs.map_state != IsUnmapped);
-    };
+    return (wmName.contains("inkscape") && attrs.map_state != IsUnmapped);
+};
 
-    // Test cached window first for performance
-    static Window cachedInkscapeWindow = 0;
-    if (isInkscapeWindow(display, cachedInkscapeWindow))
-        return cachedInkscapeWindow;
+static Window findInkscapeWindowRecursive(Display *display, Window root) {
+    // Try match this window
+    if (isInkscapeWindow(display, root))
+        return root;
 
-    // If cached window is not an inkscape window, try to find one
-    Window root = XDefaultRootWindow(display), parent;
+    Window parent;
     Window *children = nullptr;
     auto cleanup = qScopeGuard([&] {
         if (children)
             XFree(children);
     });
 
+    // Recursively find all children windows
     unsigned n;
     XQueryTree(display, root, &root, &parent, &children, &n);
-    if (!children)
-        return 0;
-
-    // Search only the top-level windows
-    for (unsigned i = 0; i < n; ++i) {
-        if (isInkscapeWindow(display, children[i])) {
-            cachedInkscapeWindow = children[i];
-            return children[i];
-        }
-    }
+    for (unsigned i = 0; i < n; ++i)
+        if (Window w = findInkscapeWindowRecursive(display, children[i]); w)
+            return w;
     return 0;
+}
+
+static Window findInkscapeWindow(Display *display) {
+    // Test cached window first for performance
+    static Window cachedInkscapeWindow = 0;
+    if (isInkscapeWindow(display, cachedInkscapeWindow))
+        return cachedInkscapeWindow;
+
+    // If cached window is not an inkscape window, try to find one
+    Window windowFound =
+        findInkscapeWindowRecursive(display, XDefaultRootWindow(display));
+
+    // Cache the found window (if valid)
+    if (windowFound)
+        cachedInkscapeWindow = windowFound;
+    return windowFound;
 }
 
 void Utils::pasteStyleToInkscape() {
