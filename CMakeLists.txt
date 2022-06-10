@@ -29,6 +29,7 @@ set(PROJECT_SOURCES
     src/config.cpp
     src/utils.cpp
     src/visitorpattern.hpp
+    src/runguard.hpp
     # Headers
     src/button.hpp
     src/hiddenbutton.hpp
@@ -36,6 +37,7 @@ set(PROJECT_SOURCES
     src/config.hpp
     src/constants.hpp
     src/utils.hpp
+    src/runguard.cpp
     # Configs
     src/global.hpp.in
     # Resources
