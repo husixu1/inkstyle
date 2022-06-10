@@ -420,7 +420,7 @@ StandardButtonInfo::genStyleSvg(const QHash<QString, QString> &svgDefs) const {
     // Combine them as style svg
     return QString(
                R"(<?xml version="1.0" encoding="UTF-8"?>)"
-               R"(<svg><defs>%1</defs><inkscape:clipboard style="%1"/></svg>)")
+               R"(<svg><defs>%1</defs><inkscape:clipboard style="%2"/></svg>)")
         .arg(genDefsSvg(svgDefs), styles.join(";"))
         .toUtf8();
 }

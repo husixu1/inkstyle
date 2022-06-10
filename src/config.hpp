@@ -56,9 +56,20 @@ private:
     /// @details stores: {defId, def-content}...
     QHash<QString, QString> svgDefs;
 
+    /// @brief Parse the config file, initialize
+    /// @param config The root yaml node
     void parseConfig(const YAML::Node &config);
+
+    /// @brief Parse global configs, initialize #panelBgColor, #guideColor, ...
+    /// @param config The root yaml node
     void parseGlobalConfig(const YAML::Node &config);
+
+    /// @brief Parse global configs, #svgDefs
+    /// @param config The root yaml node
     void parseSvgDefsConfig(const YAML::Node &config);
+
+    /// @brief Initialize #customButtons and #standardButtons
+    /// @param config The root yaml node
     void parseButtonsConfig(const YAML::Node &config);
 };
 

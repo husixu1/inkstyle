@@ -76,7 +76,8 @@ static QString _genColorSvg(
         styleString.append("fill:none");
     if (has(CBK::stroke))
         styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
-    for (const char *key : {CBK::fill, CBK::stroke, CBK::strokeDashArray})
+    for (const char *key :
+         {CBK::fill, CBK::stroke, CBK::strokeDashArray, CBK::strokeDashOffset})
         if (has(key))
             styleString.append(key + (":" + info.styles()[key]));
     return element.replace("{S}", styleString.join(";"));
@@ -174,8 +175,7 @@ static QString _genStrokeWidthSvg(
         element = QString(R"(<path d="M %1 %2 H %3" style="{S}"/>)")
                       .arg(str.x())
                       .arg(str.y())
-                      .arg(stl.x())
-                      .arg(stl.y());
+                      .arg(stl.x());
     }
 
     QStringList styleString;
@@ -185,6 +185,55 @@ static QString _genStrokeWidthSvg(
                          : "stroke:#fff");
     styleString.append(
         QString("stroke-width:%1").arg(info.styles()[CBK::strokeWidth]));
+    return element.replace("{S}", styleString.join(';'));
+}
+
+static QString _genStrokeCapSvg(
+    const StandardButtonInfo &info, const QPointF &cb, const QPointF &cm,
+    const QPointF &ce) {
+    namespace IC = C::IC;
+    namespace CBK = C::C::B::K;
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
+
+    QString element =
+        QString(R"(<path d="M %1 %2 L %3 %4 L %5 %6" style="{S}"/>)")
+            .arg(cb.x())
+            .arg(cb.y())
+            .arg(cm.x())
+            .arg(cm.y())
+            .arg(ce.x())
+            .arg(ce.y());
+    QStringList styleString;
+    styleString.append("fill-opacity:0");
+    styleString.append("stroke:#fff");
+    styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+    styleString.append(
+        CBK::strokeLineCap + (":" + info.styles()[CBK::strokeLineCap]));
+    return element.replace("{S}", styleString.join(';'));
+}
+
+static QString _genStrokeJoinSvg(
+    const StandardButtonInfo &info, const QPointF &jb, const QPointF &jm,
+    const QPointF &je) {
+    namespace IC = C::IC;
+    namespace CBK = C::C::B::K;
+    auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
+
+    QString element =
+        QString(R"(<path d="M %1 %2 L %3 %4 L %5 %6" style="{S}"/>)")
+            .arg(jb.x())
+            .arg(jb.y())
+            .arg(jm.x())
+            .arg(jm.y())
+            .arg(je.x())
+            .arg(je.y());
+    QStringList styleString;
+    styleString.append("fill-opacity:0");
+    styleString.append("stroke:#fff");
+    styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+    if (has(CBK::strokeLineJoin))
+        styleString.append(
+            CBK::strokeLineJoin + (":" + info.styles()[CBK::strokeLineJoin]));
     return element.replace("{S}", styleString.join(';'));
 }
 
@@ -254,13 +303,12 @@ static QString _composeSvg(
 static QByteArray _genStyleButtonSvg(
     Button *button, const Config &config, const StandardButtonInfo &info,
     bool orientation) {
-    using C::R30, C::R60, C::R45;
+    using C::R30, C::R60, C::R45, C::RAD;
     namespace CGK = C::C::G::K;      // button config Keys
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
 
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
-    QPointF centroid = button->centroid * button->hoverScale;
 
     QString svgDefs;
     QString svgContent;
@@ -272,55 +320,71 @@ static QByteArray _genStyleButtonSvg(
 
     // 1.1 Calculate common anchor points for subsequent drawing
     auto has = [&](const char *k) -> bool { return info.styles().contains(k); };
-    // color/stroke-width/marker indicator's top/bottom-left/right point
-    QPointF tr, bl, str, stl, mbl, mbr;
+    // button's centroid
+    QPointF c = button->centroid * button->hoverScale;
+    // color indicator's anchor points
+    QPointF tr, bl;
     // color/gradient indicator's radius
-    qreal radius = size.height() / 3. - C::IC::strokeWidth / 2.;
-    // stroke-width/marker indicator's radius
-    qreal sradius = size.height() * 11. / 24., mradius = sradius;
+    qreal R = size.height() / 3. - C::IC::strokeWidth / 2.;
+    // stroke-width
+    qreal sR = size.height() * 11. / 24.;
+    // marker indicator's radius
+    qreal mR = size.height() / 3.;
+
     qreal invert = orientation ? -1 : 1;
-    // qreal mradius = size.height() * 3. / 8.;
+    // qreal mR = size.height() * 3. / 8.;
     if (config.defaultIconStyle == DIS::circle) {
-        tr = centroid + QPointF(radius * qCos(R60), -radius * qSin(R60));
-        bl = centroid + QPointF(-radius * qCos(R60), radius * qSin(R60));
-        str = centroid
-              + QPointF(sradius * qCos(R30), -sradius * qSin(R30)) * invert;
-        stl = centroid
-              + QPointF(-sradius * qCos(R30), -sradius * qSin(R30)) * invert;
-        mbl = centroid
-              + QPointF(-mradius * qCos(R30), mradius * qSin(R30) * invert);
-        mbr = centroid
-              + QPointF(mradius * qCos(R30), mradius * qSin(R30) * invert);
+        tr = c + QPointF(R * qCos(R60), -R * qSin(R60));
+        bl = c + QPointF(-R * qCos(R60), R * qSin(R60));
     } else if (config.defaultIconStyle == DIS::square) {
-        tr = centroid + QPointF(radius * qCos(R45), -radius * qSin(R45));
-        bl = centroid + QPointF(-radius * qCos(R45), radius * qSin(R45));
-        str = centroid
-              + QPointF(sradius * qCos(R45), -sradius * qSin(R45)) * invert;
-        stl = centroid
-              + QPointF(-sradius * qCos(R45), -sradius * qSin(R45)) * invert;
-        mbl = centroid
-              + QPointF(-mradius * qCos(R30), mradius * qSin(R30) * invert);
-        mbr = centroid
-              + QPointF(mradius * qCos(R30), mradius * qSin(R30) * invert);
-    };
+        tr = c + QPointF(R * qCos(R45), -R * qSin(R45));
+        bl = c + QPointF(-R * qCos(R45), R * qSin(R45));
+        sR *= 2. / qSqrt(3.);
+    }
+    // stroke-width indicator's anchor points
+    QPointF str = c + QPointF(sR * qCos(R60), -sR * qSin(R60)) * invert;
+    QPointF stl = c + QPointF(-sR * qCos(R60), -sR * qSin(R60)) * invert;
+    // marker indicator's anchor points
+    QPointF mbl = c + QPointF(-mR * qCos(R45), mR * qSin(R45) * invert);
+    QPointF mbr = c + QPointF(mR * qCos(R45), mR * qSin(R45) * invert);
+    // line-cap indicator's anchor points
+    QPointF cb =
+        c + QPointF(-mR * qSin(R45) / qTan(RAD(40)), mR * qSin(R45) * invert);
+    QPointF cm =
+        c + QPointF(-mR * qSin(R45) / qTan(RAD(30)), mR * qSin(R45) * invert);
+    QPointF ce = cm + (cb - cm).x() * QPointF(qCos(R60), -qSin(R60) * invert);
+    // line-join indicator's anchor points
+    QPointF jb =
+        c + QPointF(mR * qSin(R45) / qTan(RAD(40)), mR * qSin(R45) * invert);
+    QPointF jm =
+        c + QPointF(mR * qSin(R45) / qTan(RAD(30)), mR * qSin(R45) * invert);
+    QPointF je = jm + (jb - jm).x() * QPointF(qCos(R60), qSin(R60) * invert);
 
     // 1.2 Add necessary definitions
     svgDefs += _genSvgDefs(config, info);
 
     // 2. Draw the fill/stroke color/style indicator
     if (has(CBK::fill) || has(CBK::stroke) || has(CBK::strokeDashArray))
-        svgContent += _genColorSvg(config, info, bl, tr, radius);
+        svgContent += _genColorSvg(config, info, bl, tr, R);
 
     // 3. Draw the stroke/fill opacity indicator
     if (has(CBK::strokeOpacity) || has(CBK::fillOpacity)) {
-        auto [defs, content] = _genOpacitySvg(config, info, bl, tr, radius);
+        auto [defs, content] = _genOpacitySvg(config, info, bl, tr, R);
         svgDefs += defs;
         svgContent += content;
     }
 
     // 4. Draw stroke-width indicator
     if (has(CBK::strokeWidth))
-        svgContent += _genStrokeWidthSvg(config, info, stl, str, sradius);
+        svgContent += _genStrokeWidthSvg(config, info, stl, str, sR);
+
+    // 5.1: draw stroke-linecap indicator
+    if (has(CBK::strokeLineCap))
+        svgContent += _genStrokeCapSvg(info, cb, cm, ce);
+
+    // 5.2: draw stroke-linejoin indicator
+    if (has(CBK::strokeLineJoin))
+        svgContent += _genStrokeJoinSvg(info, jb, jm, je);
 
     // 5. Draw marker start/end/mid indicator
     if (has(CBK::markerStart) || has(CBK::markerMid) || has(CBK::markerEnd))
@@ -1034,7 +1098,7 @@ void Panel::delPanel(quint8 tSlot) {
 }
 
 void Panel::copyStyle() {
-    if (!centralButtonInfo->isEmpty()) {
+    if (centralButtonInfo && !centralButtonInfo->isEmpty()) {
         // Copy style associated with slot to clipboard
         QMimeData *styleSvg = new QMimeData;
         styleSvg->setData(

@@ -15,6 +15,9 @@ namespace Constants {
 constexpr double R30 = 30. * M_PI / 180.;
 constexpr double R45 = 45. * M_PI / 180.;
 constexpr double R60 = 60. * M_PI / 180.;
+consteval qreal RAD(qreal deg) noexcept {
+    return deg * M_PI / 180;
+}
 
 /// @brief Number of icons to cache
 constexpr size_t iconCacheSize = 1000;
@@ -54,6 +57,7 @@ namespace Configs {
             cccp panelRadius = "panel-radius";
             cccp defaultIconStyle = "default-icon-style";
             cccp defaultIconText = "default-icon-text";
+            cccp vimCommand = "vim-command";
         } // namespace Keys
         namespace K = Keys;
         namespace Values {
@@ -86,10 +90,13 @@ namespace Configs {
             cccp fontStyle = "font-style";
             /// @brief keys in this array will be automatically added to
             /// #Config::ButtonInfo::styles
-            cccp basicStyles[] = {stroke,          strokeWidth, strokeOpacity,
-                                  strokeDashArray, markerStart, markerMid,
-                                  markerEnd,       fill,        fillOpacity,
-                                  fontFamily,      fontSize,    fontStyle};
+            cccp basicStyles[] = {
+                stroke,          strokeOpacity,    strokeWidth,
+                strokeDashArray, strokeDashOffset, strokeLineCap,
+                strokeLineJoin,  strokeMiterLimit, markerStart,
+                markerMid,       markerEnd,        fill,
+                fillOpacity,     fontFamily,       fontSize,
+                fontStyle};
             cccp slot = "slot";
             cccp customStyle = "svg";
             cccp customIcon = "icon";

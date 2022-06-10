@@ -6,7 +6,7 @@ global:
   guide-color: "#ffffff"
   panel-max-levels: 2
   panel-radius: 200
-  default-icon-style: circle
+  default-icon-style: square
   default-icon-text: "S"
 buttons:
   - slot: 0x00000100
@@ -26,6 +26,13 @@ buttons:
   - slot: 0x00010102
     stroke: "#ffc"
     stroke-dasharray: 2 1
+    stroke-opacity: 0.8
+    font-size: 10
+    font-family: Linux Libertine
+  - slot: 0x00010203
+    stroke: "#ffc"
+    stroke-dasharray: 2 1
+    stroke-dashoffset: 1
     stroke-opacity: 0.8
     font-size: 10
     font-family: Linux Libertine
@@ -68,8 +75,21 @@ buttons:
   - slot: 0x01000101
     stroke-width: 20
     fill-opacity: 0.3
+  - slot: 0x01000200
+    stroke-linecap: round
+  - slot: 0x01000201
+    stroke-linejoin: round
+  - slot: 0x01010200
+    marker-start: url(#arrow-simple-reverse)
+    marker-mid: url(#dot)
+    marker-end: url(#arrow-simple-forward)
+    stroke-linecap: round
+  - slot: 0x01010201
+    marker-start: url(#arrow-simple-reverse)
+    marker-mid: url(#dot)
+    marker-end: url(#arrow-simple-forward)
+    stroke-linejoin: round
   - slot: 0x00040202
-    function: :exit
     icon: >
       <svg width="400" height="346" version="1.1" viewBox="0 0 400 346" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">
       <g transform="matrix(.56578 0 0 .56578 205.89 242.34)" fill="#fff8e1" stroke-width="1.2726">
