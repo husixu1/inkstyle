@@ -1,6 +1,7 @@
 #include "panel.hpp"
 
 #include "constants.hpp"
+#include "pugixml.hpp"
 
 #include <QApplication>
 #include <QCache>
@@ -22,6 +23,7 @@
 #include <QtDebug>
 #include <QtMath>
 #include <algorithm>
+#include <sstream>
 
 uint qHash(const QPoint &point, uint seed = 0) {
     return qHash(QPair<int, int>(point.x(), point.y()), seed);
@@ -631,10 +633,55 @@ bool Panel::isActive() const {
                [](const auto &panel) { return panel && panel->isActive(); });
 }
 
-void Panel::storeStyleInClipboard(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+void Panel::updateStyleFromClipboard(
+    quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+
     // Copy style associated with slot to clipboard
     const QMimeData *styleSvg = QApplication::clipboard()->mimeData();
     QString svg = styleSvg->data(C::styleMimeType);
+
+    // Parse clipboard with pugixml
+    pugi::xml_document doc;
+    pugi::xml_parse_result result = doc.load_string(svg.toStdString().c_str());
+    if (result) {
+        // parse clipboard
+        qDebug("clipboard: %s", svg.toStdString().c_str());
+        const pugi::xml_node &node =
+            doc.find_node([](const pugi::xml_node &node) -> bool {
+                return std::string("inkscape:clipboard") == node.name();
+            });
+
+        // Parse style as a map of {key, value} pairs
+        QHash<QString, QString> styles;
+        for (QString &s : QString(node.attribute("style").value()).split(';'))
+            styles.insert(s.split(':')[0].trimmed(), s.split(':')[1].trimmed());
+
+        // Parse svg defs
+        QHash<QString, QString> svgDefs;
+        const pugi::xml_node &defs =
+            doc.find_node([](const pugi::xml_node &node) -> bool {
+                return std::string("defs") == node.name();
+            });
+        for (pugi::xml_node &def : defs.children()) {
+            std::stringstream ss;
+            def.print(ss);
+            svgDefs.insert(
+                def.attribute("id").value(), QString::fromStdString(ss.str()));
+        }
+
+        for (const QString &def : svgDefs)
+            qDebug("%s", def.toStdString().c_str());
+
+        // Store and save parsed styles into configs
+        configs->updateGeneratedConfig(
+            calcSlot(pSlot, tSlot, rSlot, subSlot), styles, svgDefs);
+
+    } else {
+        // Parse error
+        qWarning(
+            "xml parsed with errors: %s (at offset %ld).", result.description(),
+            result.offset);
+    }
 }
 
 Config::Slot
@@ -788,8 +835,6 @@ Panel::Panel(
     // Preconditions
     Q_ASSERT_X(this->configs, __func__, "Configs not initialized");
     Q_ASSERT_X(this->_pGrid, __func__, "Panel grid not initialized");
-    // Q_ASSERT_X(!parentPanel == (this == rootPanel), __func__, "Internal
-    // error");
 
     // Set common window attributes
     setAttribute(Qt::WA_TranslucentBackground);
@@ -820,8 +865,7 @@ Panel::Panel(
             for (quint8 k = 0; k < j * 2 + 1; ++k)
                 addStyleButton(i, j, k);
 
-    // Add border buttons if not exceeding max levels, skip the occupied
-    // edge
+    // Add border buttons if not exceeding max levels, skip the occupied edge
     for (quint8 i = 0; i < 6; ++i)
         if (!parentPanel || !panelGrid.contains(calcRelativeCoordinate(i)))
             addBorderButton(i);
@@ -892,12 +936,19 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     connect(rawButton, &Button::mouseEnter, this, &QWidget::raise);
     // Make the button toggle-able
     connect(rawButton, &QPushButton::clicked, rawButton, &Button::toggle);
-    // Enable button replacement (store style from clipboard)
+    // Enable button replacement (update style from clipboard)
     connect(
         rawButton, &Button::stateUpdated, this,
         [this, rawButton, tSlot, rSlot, subSlot] {
+            // update config and store config to file
+            updateStyleFromClipboard(tSlot, rSlot, subSlot);
+            configs->saveGeneratedConfig();
+
+            // update displayed button
+            delStyleButton(tSlot, rSlot, subSlot);
+            addStyleButton(tSlot, rSlot, subSlot);
+
             qDebug() << rawButton << " style updated";
-            storeStyleInClipboard(tSlot, rSlot, subSlot);
         });
 
     for (Panel *panel = this; panel; panel = panel->parentPanel) {
@@ -921,6 +972,17 @@ Button *Panel::addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     }
 
     return button.get();
+}
+
+void Panel::delStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot) {
+    Configs::Slot slot = calcSlot(pSlot, tSlot, rSlot, subSlot);
+    if (styleButtons.contains(slot)) {
+        if (styleButtons[slot]) {
+            styleButtons[slot]->disconnect();
+            styleButtons[slot] = nullptr;
+        }
+        styleButtons.remove(slot);
+    }
 }
 
 HiddenButton *Panel::addBorderButton(quint8 tSlot) {

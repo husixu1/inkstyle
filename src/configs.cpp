@@ -10,14 +10,14 @@ Configs::Configs(
           QSharedPointer<Config>(new Config(generatedConfigPath)),
           QSharedPointer<Config>(new Config(userConfigPath)),
           QSharedPointer<Config>(new Config)},
-      generatedConfig(configs[0].data()), userConfig(configs[1].data()),
-      defaultConfig(configs[2].data()) {
+      generatedConfig(*configs[0]), userConfig(*configs[1]),
+      defaultConfig(*configs[2]), generatedConfigPath(generatedConfigPath) {
 
     // compose entries from underlying configs
     auto loadEntry = [&, this]<typename T>(T &result, T Config::*entryPtr) {
-        result = defaultConfig->*entryPtr;
+        result = defaultConfig.*entryPtr;
         for (auto &c : configs) {
-            if (c.data()->*entryPtr != defaultConfig->*entryPtr) {
+            if (c.data()->*entryPtr != defaultConfig.*entryPtr) {
                 result = c.data()->*entryPtr;
                 break;
             }
@@ -74,4 +74,14 @@ QHash<QString, QString> Configs::getSvgDefs() const {
         svgDefs.insert(c->getSvgDefs());
     });
     return svgDefs;
+}
+
+void Configs::updateGeneratedConfig(
+    const Slot &slot, const QHash<QString, QString> &styles,
+    const QHash<QString, QString> &svgDefs) {
+    generatedConfig.updateStyle(slot, styles, svgDefs);
+}
+
+void Configs::saveGeneratedConfig() {
+    generatedConfig.saveToFile(generatedConfigPath);
 }

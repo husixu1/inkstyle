@@ -1,11 +1,11 @@
 #ifndef CONFIGS_HPP
-#    define CONFIGS_HPP
+#define CONFIGS_HPP
 
-#    include "config.hpp"
+#include "config.hpp"
 
-#    include <QObject>
-#    include <QSharedPointer>
-#    include <QVector>
+#include <QObject>
+#include <QSharedPointer>
+#include <QVector>
 
 class Configs : public QObject {
     Q_OBJECT
@@ -34,7 +34,13 @@ public:
     QString defaultIconText;
     QStringList texEditor;
 
-    // TODO: add interface to write to generatedConfig
+    /// @brief Update Generated Config
+    void updateGeneratedConfig(
+        const Slot &slot, const QHash<QString, QString> &styles,
+        const QHash<QString, QString> &svgDefs = {});
+
+    /// @brief Save the #generatedConfig to #generatedConfigPath
+    void saveGeneratedConfig();
 
 private:
     /// @brief A list of configs to stack
@@ -42,12 +48,12 @@ private:
 
     /// @{
     /// @brief Reference to #configs. Precedence: generated > user > default
-    Config *const generatedConfig;
-    Config *const userConfig;
-    Config *const defaultConfig;
+    Config &generatedConfig;
+    Config &userConfig;
+    Config &defaultConfig;
     /// @}
+
+    const QString generatedConfigPath;
 };
 
 #endif // CONFIGS_HPP
-
-// TODO: replace Config with Configs

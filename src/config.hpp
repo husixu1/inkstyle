@@ -36,6 +36,11 @@ public:
 
     const QHash<QString, QString> &getSvgDefs() const;
 
+    void updateStyle(
+        const Slot &slot, const QHash<QString, QString> &styles,
+        const QHash<QString, QString> &svgDefs = {});
+    void saveToFile(const QString &file);
+
     QColor panelBgColor;
     QColor buttonBgColorInactive;
     QColor buttonBgColorActive;
@@ -123,6 +128,7 @@ public:
         const QSet<QString> &defIds, const QByteArray &customStyleSvg,
         const QByteArray &customIconSvg);
 
+    const QByteArray &getStyleSvg() const;
     const QByteArray &getIconSvg() const;
 
 private:

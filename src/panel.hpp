@@ -58,6 +58,7 @@ private:
     /// | Numbers in cells are subSlots         |
     /// `````````````````````````````````````````
     Button *addStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot);
+    void delStyleButton(quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
     /// @brief Add button that fills border of the hexagon
     /// @param tSlot theta(angle)-slot, range from 0-5
@@ -113,7 +114,7 @@ private:
     bool isActive() const;
 
     /// @brief Get style from clipboard and store it to the config file
-    void storeStyleInClipboard(quint8 tSlot, quint8 rSlot, quint8 subSlot);
+    void updateStyleFromClipboard(quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
     static Configs::Slot
     calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);

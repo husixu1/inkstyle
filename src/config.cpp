@@ -6,10 +6,12 @@
 #include <QCryptographicHash>
 #include <QDebug>
 #include <QFile>
+#include <QQueue>
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <pugixml.hpp>
 
 namespace YAML {
 // Allow direct conversion from yaml node to QString
@@ -265,7 +267,7 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
 
 Config::Config(const QString &file, QObject *parent) : QObject(parent) {
     // Parse default config
-    qDebug("Loading default config.");
+    qDebug("%s: Loading default config.", file.toStdString().c_str());
     QFile baseConfig(":/res/default.yaml");
     baseConfig.open(QFile::ReadOnly);
     YAML::Node defaultConfig = YAML::Load(baseConfig.readAll().toStdString());
@@ -276,9 +278,11 @@ Config::Config(const QString &file, QObject *parent) : QObject(parent) {
         // Only load svgdefs and buttons for default config (empty filename)
         parseSvgDefsConfig(defaultConfig);
         parseButtonsConfig(defaultConfig);
+        return;
     }
 
     // Parse user config
+    qDebug("%s: Loading user config.", file.toStdString().c_str());
     if (QFile(file).exists()) {
         YAML::Node userConfig = YAML::LoadFile(file.toStdString());
         parseGlobalConfig(userConfig);
@@ -291,6 +295,169 @@ Config::Config(const QString &file, QObject *parent) : QObject(parent) {
 
 const QHash<QString, QString> &Config::getSvgDefs() const {
     return svgDefs;
+}
+
+void Config::updateStyle(
+    const Slot &slot, const QHash<QString, QString> &styles,
+    const QHash<QString, QString> &svgDefs) {
+
+    namespace CC = C::C;
+    namespace BK = C::C::B::K;
+
+    for (const QString &key : svgDefs.keys())
+        if (!this->svgDefs.contains(key))
+            this->svgDefs.insert(key, svgDefs[key]);
+
+    // A function to get a set of defs used in styles
+    auto genDefIds = [&](const QString &style) -> QSet<QString> {
+        // import elements in "<defs>...</defs>" when composing button
+        // styles
+        QSet<QString> defIds;
+        static const QRegularExpression urlRegEx(
+            R"-(\burl\((?<op>['"]?)#(?<id>.*?)\k<op>\))-");
+        auto matchIter = urlRegEx.globalMatch(style);
+        while (matchIter.hasNext()) {
+            QRegularExpressionMatch match = matchIter.next();
+            QString defId = match.captured("id");
+            if (svgDefs.contains(defId) && !defIds.contains(defId)) {
+                defIds.insert(defId);
+                qDebug(
+                    R"(Using svg def id="%s" for button %#x)",
+                    defId.toStdString().c_str(), slot);
+            } else if (!svgDefs.contains(defId)) {
+                qWarning(
+                    R"(Button %s:%s = %#x using a def id="%s" which )"
+                    R"(is not defined. Skipping importing this def...)",
+                    CC::buttons, BK::slot, slot, defId.toStdString().c_str());
+            }
+        }
+        return defIds;
+    };
+
+    // Load standard styles
+    QMap<QString, QString> stylesToSave;
+    for (const char *key : BK::basicStyles)
+        if (styles.contains(key))
+            stylesToSave.insert(QString(key), styles[key]);
+    QSet<QString> defIds =
+        genDefIds(QStringList(styles.begin(), styles.end()).join(";"));
+    standardButtons.insert(slot, {defIds, stylesToSave});
+}
+
+void Config::saveToFile(const QString &file) {
+    namespace CC = C::C;
+    namespace GK = C::C::G::K;
+    namespace BK = C::C::B::K;
+    namespace SDK = C::C::SD::K;
+
+    using QColor::HexArgb;
+    using YAML::BeginDoc, YAML::EndDoc, YAML::BeginMap, YAML::EndMap,
+        YAML::BeginSeq, YAML::EndSeq, YAML::Key, YAML::Value;
+
+    // Save to file
+    YAML::Emitter out;
+
+    // Begin document
+    out << BeginDoc << BeginMap;
+
+    // Write global section
+    {
+        out << Key << CC::global << Value << BeginMap;
+
+        out << Key << GK::panelBgColor << Value
+            << panelBgColor.name(HexArgb).toStdString().c_str();
+        out << Key << GK::buttonBgColorInactive << Value
+            << buttonBgColorInactive.name(HexArgb).toStdString().c_str();
+        out << Key << GK::buttonBgColorActive << Value
+            << buttonBgColorActive.name(HexArgb).toStdString().c_str();
+        out << Key << GK::guideColor << Value
+            << guideColor.name(HexArgb).toStdString().c_str();
+        out << Key << GK::panelMaxLevels << Value << unsigned(panelMaxLevels);
+        out << Key << GK::panelRadius << Value << panelRadius;
+        out << Key << GK::defaultIconStyle << Value
+            << defaultIconStyle.toStdString().c_str();
+        out << Key << GK::defaultIconText << Value
+            << defaultIconText.toStdString().c_str();
+        out << Key << GK::texEditor << Value << BeginSeq;
+        for (const QString &cmd : texEditor)
+            out << cmd.toStdString().c_str();
+        out << EndSeq;
+
+        out << EndMap;
+    }
+
+    // Write buttons section
+    {
+        out << Key << CC::buttons << Value << BeginSeq;
+        for (auto itr = standardButtons.constKeyValueBegin();
+             itr != standardButtons.constKeyValueEnd(); ++itr) {
+            out << BeginMap << Key << BK::slot << Value << itr->first;
+            const StylesList &styleList = itr->second.styles();
+            for (auto styleItr = styleList.constKeyValueBegin();
+                 styleItr != styleList.constKeyValueEnd(); ++styleItr)
+                out << Key << styleItr->first.toStdString().c_str() << Value
+                    << styleItr->second.toStdString().c_str();
+            out << EndMap;
+        }
+        for (auto itr = customButtons.keyValueBegin();
+             itr != customButtons.keyValueEnd(); ++itr) {
+            out << BeginMap << Key << BK::slot << Value << itr->first;
+            if (QByteArray style = itr->second.getStyleSvg(); !style.isEmpty())
+                out << Key << BK::customStyle << Value
+                    << style.toStdString().c_str();
+            if (QByteArray icon = itr->second.getIconSvg(); !icon.isEmpty())
+                out << Key << BK::customIcon << Value
+                    << icon.toStdString().c_str();
+            out << EndMap;
+        }
+        out << EndSeq;
+    }
+
+    // Write svgDefs section
+    {
+        out << Key << CC::svgDefs << Value << BeginSeq;
+        for (auto itr = svgDefs.keyValueBegin(); itr != svgDefs.keyValueEnd();
+             ++itr) {
+            out << BeginMap << Key << SDK::id << Value
+                << itr->first.toStdString().c_str();
+
+            // Parse def attributes and child nodes
+            pugi::xml_document doc;
+            doc.load_string(itr->second.toStdString().c_str());
+            pugi::xml_node def = doc.first_child();
+
+            // Write type
+            out << Key << SDK::type << Value << def.name();
+
+            // Write attributes
+            if (!def.attributes().empty()) {
+                out << Key << SDK::attrs << Value << BeginMap;
+                for (pugi::xml_attribute &attribute : def.attributes())
+                    if (std::string(attribute.name()) != SDK::id)
+                        out << Key << attribute.name() << Value
+                            << attribute.value();
+                out << EndMap;
+            }
+
+            // Write child nodes
+            if (!def.children().empty()) {
+                std::stringstream ss;
+                for (pugi::xml_node &node : def.children())
+                    node.print(ss);
+                out << Key << SDK::svg << Value << ss.str();
+            }
+            out << EndMap;
+        }
+        out << EndSeq;
+    }
+
+    // End document
+    out << EndMap << EndDoc;
+
+    QFile outFile(file);
+    outFile.open(QFile::WriteOnly);
+    outFile.write(out.c_str());
+    outFile.close();
 }
 
 bool Config::hasButton(const Slot &slot) const {
@@ -338,10 +505,31 @@ size_t ButtonInfo::hash(size_t seed) const {
 ButtonInfo::ButtonInfo(const QSet<QString> &defIds) : defIds(defIds) {}
 
 QString ButtonInfo::genDefsSvg(const QHash<QString, QString> &svgDefs) const {
+    // Recursively add svg definitions and avoid duplicates
     QString defs;
-    for (const auto &id : defIds)
-        if (svgDefs.contains(id))
-            defs.append(svgDefs[id]);
+    QList<QString> idsToAdd(defIds.begin(), defIds.end());
+    QSet<QString> idsAdded;
+    for (auto itr = idsToAdd.begin(); itr != idsToAdd.end(); ++itr) {
+        if (!svgDefs.contains(*itr))
+            continue;
+
+        defs.append(svgDefs.value(*itr));
+        idsAdded.insert(*itr);
+
+        static const QRegularExpression urlRegEx(
+            R"-(\burl\((?<op>['"]?)#(?<id>.*?)\k<op>\))-");
+        static const QRegularExpression hrefRegEx(
+            R"-(\bxlink:href=(?<op>['"]?)(?<id>.*?)\k<op>)-");
+
+        for (const QRegularExpression &re : {urlRegEx, hrefRegEx}) {
+            auto matchIter = re.globalMatch(svgDefs.value(*itr));
+            while (matchIter.hasNext()) {
+                QRegularExpressionMatch match = matchIter.next();
+                if (!idsAdded.contains(match.captured("id")))
+                    idsToAdd.append(match.captured("id"));
+            }
+        }
+    }
     return defs;
 }
 
@@ -387,6 +575,10 @@ CustomButtonInfo::CustomButtonInfo(
     const QByteArray &customIconSvg)
     : ButtonInfo(defIds), customStyleSvg(customStyleSvg),
       customIconSvg(customIconSvg) {}
+
+const QByteArray &CustomButtonInfo::getStyleSvg() const {
+    return customStyleSvg;
+}
 
 const QByteArray &CustomButtonInfo::getIconSvg() const {
     return customIconSvg;
