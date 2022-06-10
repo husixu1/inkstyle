@@ -47,6 +47,9 @@ namespace Configs {
     cccp svgDefs = "svg-defs";
     namespace Global {
         namespace Keys {
+            cccp shortcutMainPanel = "shortcut-main-panel";
+            cccp shortcutTex = "shortcut-tex";
+            cccp shortcutCompiledTex = "shortcut-compiled-tex";
             cccp buttonBgColorInactive = "button-background-inactive";
             cccp buttonBgColorActive = "button-background-active";
             cccp guideColor = "guide-color";
@@ -54,7 +57,10 @@ namespace Configs {
             cccp panelRadius = "panel-radius";
             cccp defaultIconStyle = "default-icon-style";
             cccp defaultIconText = "default-icon-text";
-            cccp texEditor = "tex-editor";
+            cccp texCompileTemplate = "tex-compile-template";
+            cccp texEditorCmd = "tex-editor-cmd";
+            cccp texCompileCmd = "tex-compile-cmd";
+            cccp pdfToSvgCmd = "pdf-to-svg-cmd";
         } // namespace Keys
         namespace K = Keys;
         namespace Values {

@@ -1,5 +1,8 @@
 ---
 global:
+  shortcut-main-panel: Ctrl+Shift+F
+  shortcut-tex: Ctrl+T
+  shortcut-compiled-tex: Ctrl+Y
   button-background-inactive: "#60202020"
   button-background-active: "#80101010"
   guide-color: "#ffffff"
@@ -7,11 +10,36 @@ global:
   panel-radius: 200
   default-icon-style: circle
   default-icon-text: "S"
+
   # The {{FILE}} placeholder will be replaced with a temporary .tex file to which the content is written.
-  tex-editor:
+  tex-editor-cmd:
     - bash
     - -c
     - konsole --geometry "800x400$(xdotool getmouselocation | sed -e 's/x:/+/;s/ y:/+/;s/ screen.*$//')" -e vim {{FILE}} +star
+
+  # The {{FILE}} placeholder will be replaced by the tex file to compile
+  tex-compile-cmd:
+    - pdflatex
+    - "{{FILE}}"
+
+  # The {{FILE_IN}} placeholder will be replaced by the pdf file, and the
+  # {{FILE_OUT}} placeholder will be replaced by the svg output path
+  pdf-to-svg-cmd:
+    - pdf2svg
+    - "{{FILE_IN}}"
+    - "{{FILE_OUT}}"
+
+  # The {{CONTENT}} placeholder will be replaced by the user-entered tex content
+  tex-compile-template: |
+    \documentclass[12pt,border=12pt]{standalone}
+    \usepackage[utf8]{inputenc}
+    \usepackage[T1]{fontenc}
+    \usepackage{textcomp}
+    \usepackage{amsmath, amssymb}
+    \begin{document}
+      {{CONTENT}}
+    \end{document}
+
 buttons:
   - slot: 0x00000100
     stroke: "#ffffff"

@@ -42,36 +42,70 @@ int main(int argc, char *argv[]) try {
     a.setStyleSheet(styleSheet);
 
     // Register hotkeys
-    QHotkey hotkey(QKeySequence("Ctrl+Shift+F"), true, &a);
     QSharedPointer<Panel> panel(nullptr);
-    QObject::connect(&hotkey, &QHotkey::activated, qApp, [&]() {
-        qDebug() << "Hotkey Activated";
-        if (!panel)
-            panel = QSharedPointer<Panel>(new Panel(nullptr, 0, configs));
-        panel->show();
-    });
-    QObject::connect(&hotkey, &QHotkey::released, qApp, [&]() {
-        qDebug() << "Hotkey Released";
-        if (panel) {
-            panel->copyStyle();
-            panel->close();
-        }
-        panel = nullptr;
-        Utils::pasteStyleToInkscape();
-    });
+    QSharedPointer<QHotkey> hotkey1;
+    if (!configs->shortcutMainPanel.isEmpty()) {
+        hotkey1 = QSharedPointer<QHotkey>(
+            new QHotkey(QKeySequence(configs->shortcutMainPanel), true, &a));
+        QObject::connect(hotkey1.data(), &QHotkey::activated, qApp, [&]() {
+            qDebug() << "Hotkey Activated";
+            if (!panel)
+                panel = QSharedPointer<Panel>(new Panel(nullptr, 0, configs));
+            panel->show();
+        });
+        QObject::connect(hotkey1.data(), &QHotkey::released, qApp, [&]() {
+            qDebug() << "Hotkey Released";
+            if (panel) {
+                panel->copyStyle();
+                panel->close();
+            }
+            panel = nullptr;
+            Utils::pasteStyleToInkscape();
+        });
+    }
 
-    QHotkey hotkey_2(QKeySequence("Ctrl+T"), true, &a);
     TexEditor editor(configs);
-    QObject::connect(
-        &hotkey_2, &QHotkey::activated, &editor, &TexEditor::start);
-    QObject::connect(&editor, &TexEditor::stopped, [&](const QByteArray &data) {
-        if (!data.trimmed().size()) {
-            qInfo("Content empty. Nothing copied");
-            return;
-        }
-        editor.copyTextElement(data.trimmed());
-        Utils::pasteElementToInkscape();
-    });
+    QSharedPointer<QHotkey> hotkey2;
+    if (!configs->shortcutTex.isEmpty()) {
+        hotkey2 = QSharedPointer<QHotkey>(
+            new QHotkey(QKeySequence(configs->shortcutTex), true, &a));
+        QObject::connect(hotkey2.data(), &QHotkey::activated, &editor, [&] {
+            editor.start(false);
+        });
+        QObject::connect(
+            &editor, &TexEditor::stopped,
+            [&](const QByteArray &data, bool compile) {
+                if (compile)
+                    return;
+                if (!data.trimmed().size()) {
+                    qInfo("Content empty. Nothing copied");
+                    return;
+                }
+                editor.copyTextElement(data.trimmed());
+                Utils::pasteElementToInkscape();
+            });
+    }
+
+    QSharedPointer<QHotkey> hotkey3;
+    if (!configs->shortcutCompiledTex.isEmpty()) {
+        hotkey3 = QSharedPointer<QHotkey>(
+            new QHotkey(QKeySequence(configs->shortcutCompiledTex), true, &a));
+        QObject::connect(hotkey3.data(), &QHotkey::activated, &editor, [&] {
+            editor.start(true);
+        });
+        QObject::connect(
+            &editor, &TexEditor::stopped,
+            [&](const QByteArray &data, bool compile) {
+                if (!compile)
+                    return;
+                if (!data.trimmed().size()) {
+                    qInfo("Content empty. Nothing copied");
+                    return;
+                }
+                editor.copyTextElement(data.trimmed());
+                Utils::pasteElementToInkscape();
+            });
+    }
 
     // Create the tray icon
     QSystemTrayIcon trayIcon(QPixmap(":/res/icons/tray_icon.png"));

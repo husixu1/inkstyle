@@ -39,6 +39,9 @@ public:
         const QHash<QString, QString> &svgDefs = {});
     void saveToFile(const QString &file);
 
+    QString shortcutMainPanel;
+    QString shortcutTex;
+    QString shortcutCompiledTex;
     QColor buttonBgColorInactive;
     QColor buttonBgColorActive;
     QColor guideColor;
@@ -46,7 +49,10 @@ public:
     quint32 panelRadius;
     QString defaultIconStyle;
     QString defaultIconText;
-    QStringList texEditor;
+    QString texCompileTemplate;
+    QStringList texEditorCmd;
+    QStringList texCompileCmd;
+    QStringList pdfToSvgCmd;
 
 private:
     /// @brief A list of buttons

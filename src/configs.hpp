@@ -5,6 +5,7 @@
 
 #include <QObject>
 #include <QSharedPointer>
+#include <QString>
 #include <QVector>
 
 class Configs : public QObject {
@@ -24,6 +25,9 @@ public:
 
     QHash<QString, QString> getSvgDefs() const;
 
+    QString shortcutMainPanel;
+    QString shortcutTex;
+    QString shortcutCompiledTex;
     QColor buttonBgColorInactive;
     QColor buttonBgColorActive;
     QColor guideColor;
@@ -31,7 +35,10 @@ public:
     quint32 panelRadius;
     QString defaultIconStyle;
     QString defaultIconText;
-    QStringList texEditor;
+    QString texCompileTemplate;
+    QStringList texEditorCmd;
+    QStringList texCompileCmd;
+    QStringList pdfToSvgCmd;
 
     /// @brief Update Generated Config
     void updateGeneratedConfig(

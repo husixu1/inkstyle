@@ -25,7 +25,9 @@ Configs::Configs(
             }
         }
     };
-
+    loadEntry(shortcutMainPanel, &Config::shortcutMainPanel);
+    loadEntry(shortcutTex, &Config::shortcutTex);
+    loadEntry(shortcutCompiledTex, &Config::shortcutCompiledTex);
     loadEntry(buttonBgColorInactive, &Config::buttonBgColorInactive);
     loadEntry(buttonBgColorActive, &Config::buttonBgColorActive);
     loadEntry(guideColor, &Config::guideColor);
@@ -33,7 +35,10 @@ Configs::Configs(
     loadEntry(panelRadius, &Config::panelRadius);
     loadEntry(defaultIconStyle, &Config::defaultIconStyle);
     loadEntry(defaultIconText, &Config::defaultIconText);
-    loadEntry(texEditor, &Config::texEditor);
+    loadEntry(texCompileTemplate, &Config::texCompileTemplate);
+    loadEntry(texEditorCmd, &Config::texEditorCmd);
+    loadEntry(texCompileCmd, &Config::texCompileCmd);
+    loadEntry(pdfToSvgCmd, &Config::pdfToSvgCmd);
 }
 
 bool Configs::hasButton(const Slot &slot) const {

@@ -64,6 +64,9 @@ void Config::parseGlobalConfig(const YAML::Node &config) {
             if (gConfig[key].IsDefined())
                 config = gConfig[key].as<T>();
         };
+        loadGlobalConfig(GK::shortcutMainPanel, shortcutMainPanel);
+        loadGlobalConfig(GK::shortcutTex, shortcutTex);
+        loadGlobalConfig(GK::shortcutCompiledTex, shortcutCompiledTex);
         loadGlobalConfig(GK::buttonBgColorInactive, buttonBgColorInactive);
         loadGlobalConfig(GK::buttonBgColorActive, buttonBgColorActive);
         loadGlobalConfig(GK::guideColor, guideColor);
@@ -71,28 +74,34 @@ void Config::parseGlobalConfig(const YAML::Node &config) {
         loadGlobalConfig(GK::panelRadius, panelRadius);
         loadGlobalConfig(GK::defaultIconStyle, defaultIconStyle);
         loadGlobalConfig(GK::defaultIconText, defaultIconText);
+        loadGlobalConfig(GK::texCompileTemplate, texCompileTemplate);
 
-        // The value of texEditor is a string list
-        if (gConfig[GK::texEditor].IsDefined()) {
-            texEditor.clear();
-            if (gConfig[GK::texEditor].IsSequence()) {
+        auto loadStringList = [&](const char *key, QStringList &config) {
+            if (!gConfig[key].IsDefined())
+                return;
+            config.clear();
+            if (gConfig[key].IsSequence()) {
                 size_t cmdCount = 0;
-                for (const YAML::Node &cmd : gConfig[GK::texEditor]) {
+                for (const YAML::Node &cmd : gConfig[key]) {
                     if (!cmd.IsScalar()) {
                         qWarning(
                             R"(%s:%s[%ld] is not a string, skipping...)",
-                            CC::global, GK::texEditor, cmdCount);
-                        texEditor.clear();
+                            CC::global, key, cmdCount);
+                        config.clear();
+                        break;
                     }
-                    texEditor.append(cmd.as<QString>());
+                    config.append(cmd.as<QString>());
                     ++cmdCount;
                 }
             } else {
                 qWarning(
-                    R"("%s:%s" is not a list, skipping...)", CC::global,
-                    GK::texEditor);
+                    R"("%s:%s" is not a list, skipping...)", CC::global, key);
             }
-        }
+        };
+        // Load string list configs
+        loadStringList(GK::texEditorCmd, texEditorCmd);
+        loadStringList(GK::texCompileCmd, texCompileCmd);
+        loadStringList(GK::pdfToSvgCmd, pdfToSvgCmd);
 
         // Check sanity of global config
         if (!QSet<QString>({DIS::circle, DIS::square})
@@ -380,8 +389,18 @@ void Config::saveToFile(const QString &file) {
             << defaultIconStyle.toStdString().c_str();
         out << Key << GK::defaultIconText << Value
             << defaultIconText.toStdString().c_str();
-        out << Key << GK::texEditor << Value << BeginSeq;
-        for (const QString &cmd : texEditor)
+        out << Key << GK::texCompileTemplate << Value
+            << texCompileTemplate.toStdString().c_str();
+        out << Key << GK::texEditorCmd << Value << BeginSeq;
+        for (const QString &cmd : texEditorCmd)
+            out << cmd.toStdString().c_str();
+        out << EndSeq;
+        out << Key << GK::texCompileCmd << Value << BeginSeq;
+        for (const QString &cmd : texCompileCmd)
+            out << cmd.toStdString().c_str();
+        out << EndSeq;
+        out << Key << GK::pdfToSvgCmd << Value << BeginSeq;
+        for (const QString &cmd : pdfToSvgCmd)
             out << cmd.toStdString().c_str();
         out << EndSeq;
 

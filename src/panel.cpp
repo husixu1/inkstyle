@@ -183,9 +183,7 @@ static QString _genStrokeWidthSvg(
 
     QStringList styleString;
     styleString.append("fill-opacity:0");
-    styleString.append(
-        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles()[CBK::stroke])
-                         : "stroke:#fff");
+    styleString.append("stroke:#fff");
     styleString.append(
         QString("stroke-width:%1").arg(info.styles()[CBK::strokeWidth]));
     return element.replace("{S}", styleString.join(';'));
@@ -258,9 +256,7 @@ static QString _genMarkerSvg(
                           .arg(end);
     QStringList styleString;
     styleString.append("stroke-width:2");
-    styleString.append(
-        has(CBK::stroke) ? QString("stroke:%1").arg(info.styles()[CBK::stroke])
-                         : "stroke:#fff");
+    styleString.append("stroke:#fff");
     for (const char *key : {CBK::markerStart, CBK::markerEnd, CBK::markerMid})
         if (has(key))
             styleString.append(key + (":" + info.styles()[key]));
@@ -290,6 +286,24 @@ static QString _genFontSvg(
     for (const char *key : {CBK::fontFamily, CBK::fontStyle})
         if (has(key))
             styleString.append(key + (":" + info.styles()[key]));
+    return element.replace("{S}", styleString.join(';'));
+}
+
+static QString _genFontSizeSvg(
+    const StandardButtonInfo &info, const QSizeF &size, qreal baselineHeight) {
+    namespace CBK = C::C::B::K;
+    QString element =
+        QString(R"(<text x="%1" y="%2" fill="#fff" style="{S}">%3</text>)")
+            .arg(size.width() * 0.6)
+            .arg(baselineHeight)
+            .arg(info.styles()[CBK::fontSize]);
+
+    QStringList styleString;
+    styleString.append(QString("font-size:%1").arg(size.height() * 0.15));
+    styleString.append("font-family:sans-serif");
+    styleString.append("text-anchor:begin");
+    styleString.append("fill:#fff");
+
     return element.replace("{S}", styleString.join(';'));
 }
 
@@ -404,6 +418,11 @@ static QByteArray _genStyleButtonSvg(
     if (has(CBK::fontFamily) || has(CBK::fontStyle))
         svgContent += _genFontSvg(
             configs, info, size, size.height() * (orientation ? 0.5 : 0.85));
+
+    // 8. Draw font-size indicator
+    if (has(CBK::fontSize))
+        svgContent += _genFontSizeSvg(
+            info, size, size.height() * (orientation ? 0.4 : 0.75));
 
     // Compose final icon
     return _composeSvg(size, svgDefs, svgContent).toUtf8();
@@ -576,6 +595,10 @@ static QByteArray _genCentralButtonSvg(
     // 7. Draw font-style indicator
     if (has(CBK::fontFamily) || has(CBK::fontStyle))
         svgContent += _genFontSvg(configs, info, size, size.height() * 0.675);
+
+    // 8. Draw font-size indicator
+    if (has(CBK::fontSize))
+        svgContent += _genFontSizeSvg(info, size, size.height() * 0.575);
 
     // Compose final icon
     return _composeSvg(size, svgDefs, svgContent).toUtf8();

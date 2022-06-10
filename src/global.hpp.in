@@ -3,6 +3,7 @@
 // clang-format off
 
 #define EXE_NAME @EXE_NAME@
+#define EXE_NAME_STR "@EXE_NAME@"
 
 // clang-format on
 #endif // _CONFIG_HPP_
