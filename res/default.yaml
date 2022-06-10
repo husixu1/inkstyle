@@ -1,27 +1,42 @@
 ---
 global:
+
+  # The shortcut to make main panel popup
   shortcut-main-panel: Ctrl+Shift+F
+  # The shortcut to start the editor and paste its content
   shortcut-tex: Ctrl+Shift+T
+  # The shortcut to start the editor, then render and paste its content later
   shortcut-compiled-tex: Ctrl+Shift+Y
+  # Inactive buttons' background color when (#AARRGGBB)
   button-background-inactive: "#60202020"
+  # Active buttons' background color when (#AARRGGBB)
   button-background-active: "#80101010"
+  # Color of the panels' borders and radial lines in the root panel
   guide-color: "#ffffff"
+  # How many panels can extend from the root panel (the first panel you summon)
   panel-max-levels: 2
+  # Size of the panels
   panel-radius: 200
+  # Icon shape (circle/square)
   default-icon-style: circle
+  # Icon text when font-family, font-shape, ... applies
   default-icon-text: "S"
 
-  # The {{FILE}} placeholder will be replaced with a temporary .tex file to which the content is written.
+  # How to invoke the tex editor.
+  # The {{FILE}} placeholder will be replaced with a temporary .tex file
+  # to which the content is written.
   tex-editor-cmd:
     - bash
     - -c
     - konsole --geometry "800x400$(xdotool getmouselocation | sed -e 's/x:/+/;s/ y:/+/;s/ screen.*$//')" -e vim {{FILE}} +star
 
+  # How to compile the .tex file
   # The {{FILE}} placeholder will be replaced by the tex file to compile
   tex-compile-cmd:
     - pdflatex
     - "{{FILE}}"
 
+  # How to convert pdf to svg.
   # The {{FILE_IN}} placeholder will be replaced by the pdf file, and the
   # {{FILE_OUT}} placeholder will be replaced by the svg output path
   pdf-to-svg-cmd:
@@ -29,7 +44,8 @@ global:
     - "{{FILE_IN}}"
     - "{{FILE_OUT}}"
 
-  # The {{CONTENT}} placeholder will be replaced by the user-entered tex content
+  # The latex template when compiling with tex-compile-command.
+  # The {{CONTENT}} placeholder will be replaced by the content of the .tex file
   tex-compile-template: |
     \documentclass[12pt,border=12pt]{standalone}
     \usepackage[utf8]{inputenc}
@@ -41,7 +57,31 @@ global:
     \end{document}
 
 buttons:
-    # storke widths
+  # Each button must have a `slot` value that indicates its position.
+  # The `slot` value has the format of `0xPPTTRRSS`.
+  # - PP: The panel index. 00 for the root panel. Each sub-level `l` has panel
+  #       indices ranging from [6(l-1), 6l)
+  # - TT: The Ѳ-index. The top-right section has TT=00.
+  #       TT increments counter-clockwise from 00 to 05
+  # - RR: The r-index. Available r-index are {00, 01, 02}. The ring at the
+  #       center (with 6 buttons) has RR=00.
+  # - SS: The s-index. Indicates where the button sits on the ring sections.
+  #       Available values are in the range [0, RR*2].
+  # If these seem too complicated, Just save some style on a button and you'll
+  # get its `slot` value from <user-config-dir>/inkstyle/config.generated.yaml
+  #
+  # For the available style entries, refer to:
+  #   https://www.w3.org/Graphics/SVG/1.1/painting.html
+  # Most properties except the `*-rendering' ones are supported
+  #
+  # Instead of these styles, you can directly specify a `svg: ...` entry
+  # and its value will be directly copied to the clipboard and applied when this
+  # button is selected.
+  #
+  # Each button can also have a custom icon. Just specify a `icon: ...` entry
+  # and its value will be treated as a SVG image and rendered as an icon.
+
+  # storke widths
   - slot: 0x00000100
     stroke-width: 1
     stroke: "#000"
@@ -62,7 +102,7 @@ buttons:
   - slot: 0x00000204
     stroke-width: 8
 
-    # fill colors
+  # fill colors
   - slot: 0x00010100
     fill: "#000"
   - slot: 0x00010101
@@ -80,7 +120,7 @@ buttons:
   - slot: 0x00010204
     fill: "#c7c7c7"
 
-    # tab20 palette - dark part (without gray)
+  # tab20 palette - dark part (without gray)
   - slot: 0x02010000
     fill: "#1f77b4"
   - slot: 0x02010100
@@ -100,7 +140,7 @@ buttons:
   - slot: 0x02010204
     fill: "#17becf"
 
-    # tab20 palette - light part (without gray)
+  # tab20 palette - light part (without gray)
   - slot: 0x02000000
     fill: "#aec7e8"
   - slot: 0x02000100
@@ -120,7 +160,7 @@ buttons:
   - slot: 0x02000204
     fill: "#9edae5"
 
-    # pastel 1 palette
+  # pastel 1 palette
   - slot: 0x02020000
     fill: "#fbb4ae"
   - slot: 0x02020100
@@ -140,7 +180,7 @@ buttons:
   - slot: 0x02020204
     fill: "#f2f2f2"
 
-    # set1 palette
+  # set1 palette
   - slot: 0x02030000
     fill: "#e41a1c"
   - slot: 0x02030100
@@ -160,7 +200,7 @@ buttons:
   - slot: 0x02030204
     fill: "#999999"
 
-    # hatches
+  # hatches
   - slot: 0x02040100
     fill: url(#hatch-5x5-45)
   - slot: 0x02040101
@@ -174,7 +214,7 @@ buttons:
   - slot: 0x02040203
     fill: url(#hatch-3x3-135)
 
-    # fonts
+  # fonts
   - slot: 0x00020100
     font-family: sans
   - slot: 0x00020101
@@ -192,7 +232,7 @@ buttons:
   - slot: 0x00020204
     font-size: 24
 
-    # opacities
+  # opacities
   - slot: 0x00030100
     fill-opacity: 0.0
   - slot: 0x00030101
@@ -211,7 +251,7 @@ buttons:
     fill-opacity: 0.9
 
 
-    # stroke-dasharray
+  # stroke-dasharray
   - slot: 0x00040100
     stroke-dasharray: 2 2
   - slot: 0x00040101
@@ -229,7 +269,7 @@ buttons:
   - slot: 0x00040204
     stroke-dasharray: 4 4 2 4
 
-    # markers
+  # markers
   - slot: 0x00050100
     marker-start: none
     marker-end: url(#arrow-simple-forward)
@@ -240,7 +280,7 @@ buttons:
     marker-start: url(#arrow-simple-reverse)
     marker-end: none
 
-    # combined styles
+  # combined styles
   - slot: 0x00050200
     stroke: "#000"
     stroke-opacity: 1
@@ -261,7 +301,7 @@ buttons:
     fill: "#7f7f7f"
     fill-opacity: 1
 
-    # A button to clear everything
+  # A button to clear everything, with a custom icon
   - slot: 0x00050202
     stroke: none
     stroke-opacity: none
@@ -281,12 +321,15 @@ buttons:
     icon: >
       <svg width="2e3" height="1732" version="1.1" viewBox="0 0 2e3 1732" xmlns="http://www.w3.org/2000/svg">
        <g transform="rotate(45 1193.3 559.94)" fill="#fff">
-        <rect x="960" y="60" width="80" height="1160" ry="40" stop-color="#000000" style="-inkscape-stroke:none"/>
+        <rect x="960" y="60" width="80" height="1160" ry="40" stop-color="#000000"/>
         <rect transform="rotate(90)" x="600" y="-1580" width="80" height="1160" ry="40" stop-color="#000000"/>
        </g>
       </svg>
 
 svg-defs:
+  # Each element in this list specify an svg element in the <defs>...</defs>
+  # block. See below for examples.
+
   - id: grid-5x5-45
     type: pattern
     attrs:
