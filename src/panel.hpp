@@ -120,6 +120,10 @@ private:
     static Configs::Slot
     calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot);
 
+    /// @brief Generate options to pass to resvg renderer.
+    /// @return The returned optios should not be copied.
+    static const ResvgOptions &genResvgOptions();
+
 private slots:
     void addPanel(quint8 tSlot);
     void delPanel(quint8 tSlot);

@@ -440,16 +440,6 @@ Panel::drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const {
     using SBInfo = StandardButtonInfo;
     using CBInfo = CustomButtonInfo;
 
-    // Cache resvgOptions to reduce system font loading time
-    static std::unique_ptr<ResvgOptions> resvgOptions;
-    // Qt's svg is too weak. It cannot render clip/pattern. we use resvg here.
-    if (!resvgOptions) {
-        resvgOptions = std::make_unique<ResvgOptions>();
-        resvgOptions->loadSystemFonts();
-        resvgOptions->setImageRenderingMode(
-            resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
-    }
-
     Slot slot = calcSlot(pSlot, tSlot, rSlot, subSlot);
 
     // Get button to draw icon
@@ -458,7 +448,7 @@ Panel::drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const {
     QSizeF iconSize = button->inactiveGeometry.size() * button->hoverScale;
 
     auto render = [&](QByteArray iconSvg) -> QPixmap * {
-        ResvgRenderer renderer(iconSvg, *resvgOptions);
+        ResvgRenderer renderer(iconSvg, genResvgOptions());
         if (!renderer.isValid()) {
             qCritical(
                 "Invalid SVG generated from slot %#x:\n%s", slot,
@@ -639,16 +629,7 @@ QPixmap Panel::drawCentralButtonIcon() const {
     // Draw with scaled size, otherwise icon won't scale well
     QSizeF iconSize = button->inactiveGeometry.size() * button->hoverScale;
 
-    // Cache resvgOptions to reduce system font loading time
-    static std::unique_ptr<ResvgOptions> resvgOptions;
-    if (!resvgOptions) {
-        resvgOptions = std::make_unique<ResvgOptions>();
-        resvgOptions->loadSystemFonts();
-        resvgOptions->setImageRenderingMode(
-            resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
-    }
-
-    ResvgRenderer renderer(iconSvg, *resvgOptions);
+    ResvgRenderer renderer(iconSvg, genResvgOptions());
     if (!renderer.isValid()) {
         qCritical(
             "Invalid SVG generated from central button:\n%s",
@@ -730,6 +711,19 @@ Config::Slot
 Panel::calcSlot(quint8 pSlot, quint8 tSlot, quint8 rSlot, quint8 subSlot) {
     return quint32(pSlot) << 24 | quint32(tSlot) << 16 | quint32(rSlot) << 8
            | quint32(subSlot);
+}
+
+const ResvgOptions &Panel::genResvgOptions() {
+    // Qt's svg is too weak. It cannot render clip/pattern. we use resvg here.
+    static std::unique_ptr<ResvgOptions> resvgOptions;
+    // Cache resvgOptions to reduce system font loading time
+    if (!resvgOptions) {
+        resvgOptions = std::make_unique<ResvgOptions>();
+        resvgOptions->loadSystemFonts();
+        resvgOptions->setImageRenderingMode(
+            resvg_image_rendering::RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY);
+    }
+    return *resvgOptions;
 }
 
 QPoint Panel::calcRelativeCoordinate(quint8 tSlot) {
