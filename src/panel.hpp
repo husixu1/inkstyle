@@ -2,6 +2,7 @@
 #define PANEL_H
 
 #include "button.hpp"
+#include "buttoninfo.hpp"
 #include "configs.hpp"
 #include "hiddenbutton.hpp"
 

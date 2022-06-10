@@ -1,5 +1,7 @@
 #include "configs.hpp"
 
+#include "buttoninfo.hpp"
+
 #include <algorithm>
 
 Configs::Configs(

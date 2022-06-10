@@ -42,8 +42,6 @@ namespace DefaultButtonColors {
 namespace DBC = DefaultButtonColors;
 
 namespace Configs {
-    // NOTE: const std::string are supported in gcc 12
-    // current (Mar 2022) gcc 12 are still experimental
     cccp global = "global";
     cccp buttons = "buttons";
     cccp svgDefs = "svg-defs";

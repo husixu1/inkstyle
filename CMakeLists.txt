@@ -26,6 +26,7 @@ set(PROJECT_SOURCES
     src/hiddenbutton.cpp
     src/main.cpp
     src/panel.cpp
+    src/buttoninfo.cpp
     src/config.cpp
     src/configs.cpp
     src/utils.cpp
@@ -36,6 +37,7 @@ set(PROJECT_SOURCES
     src/button.hpp
     src/hiddenbutton.hpp
     src/panel.hpp
+    src/buttoninfo.hpp
     src/config.hpp
     src/configs.hpp
     src/utils.hpp
