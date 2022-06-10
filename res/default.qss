@@ -1,12 +1,7 @@
 QWidget {
-  background-color: #303030;
+  background-color: transparent;
 }
 
 QPushButton {
-    background-color: #202020;
     border: none;
-}
-
-QPushButton:hover {
-    background-color: #000000;
 }

@@ -1,0 +1,419 @@
+---
+global:
+
+  # The shortcut to make main panel popup
+  shortcut-main-panel: Ctrl+Shift+F
+  # The shortcut to start the editor and paste its content
+  shortcut-tex: Ctrl+Shift+T
+  # The shortcut to start the editor, then render and paste its content later
+  shortcut-compiled-tex: Ctrl+Shift+Y
+  # Inactive buttons' background color when (#AARRGGBB)
+  button-background-inactive: "#60202020"
+  # Active buttons' background color when (#AARRGGBB)
+  button-background-active: "#80101010"
+  # Color of the panels' borders and radial lines in the root panel
+  guide-color: "#ffffff"
+  # How many panels can extend from the root panel (the first panel you summon)
+  panel-max-levels: 2
+  # Size of the panels
+  panel-radius: 200
+  # Icon shape (circle/square)
+  default-icon-style: circle
+  # Icon text when font-family, font-shape, ... applies
+  default-icon-text: "S"
+
+  # How to invoke the tex editor.
+  # The {{FILE}} placeholder will be replaced with a temporary .tex file
+  # to which the content is written.
+  tex-editor-cmd:
+    - bash
+    - -c
+    - konsole --geometry "800x400$(xdotool getmouselocation | sed -e 's/x:/+/;s/ y:/+/;s/ screen.*$//')" -e vim {{FILE}} +star
+
+  # How to compile the .tex file
+  # The {{FILE}} placeholder will be replaced by the tex file to compile
+  tex-compile-cmd:
+    - pdflatex
+    - "{{FILE}}"
+
+  # How to convert pdf to svg.
+  # The {{FILE_IN}} placeholder will be replaced by the pdf file, and the
+  # {{FILE_OUT}} placeholder will be replaced by the svg output path
+  pdf-to-svg-cmd:
+    - pdf2svg
+    - "{{FILE_IN}}"
+    - "{{FILE_OUT}}"
+
+  # The latex template when compiling with tex-compile-command.
+  # The {{CONTENT}} placeholder will be replaced by the content of the .tex file
+  tex-compile-template: |
+    \documentclass[12pt,border=12pt]{standalone}
+    \usepackage[utf8]{inputenc}
+    \usepackage[T1]{fontenc}
+    \usepackage{textcomp}
+    \usepackage{amsmath, amssymb}
+    \begin{document}
+      {{CONTENT}}
+    \end{document}
+
+buttons:
+  # Each button must have a `slot` value that indicates its position.
+  # The `slot` value has the format of `0xPPTTRRSS`.
+  # - PP: The panel index. 00 for the root panel. Each sub-level `l` has panel
+  #       indices ranging from [6(l-1), 6l)
+  # - TT: The Ѳ-index. The top-right section has TT=00.
+  #       TT increments counter-clockwise from 00 to 05
+  # - RR: The r-index. Available r-index are {00, 01, 02}. The ring at the
+  #       center (with 6 buttons) has RR=00.
+  # - SS: The s-index. Indicates where the button sits on the ring sections.
+  #       Available values are in the range [0, RR*2].
+  # If these seem too complicated, Just save some style on a button and you'll
+  # get its `slot` value from <user-config-dir>/inkstyle/config.generated.yaml
+  #
+  # For the available style entries, refer to:
+  #   https://www.w3.org/Graphics/SVG/1.1/painting.html
+  # Most properties except the `*-rendering' ones are supported
+  #
+  # Instead of these styles, you can directly specify a `svg: ...` entry
+  # and its value will be directly copied to the clipboard and applied when this
+  # button is selected.
+  #
+  # Each button can also have a custom icon. Just specify a `icon: ...` entry
+  # and its value will be treated as a SVG image and rendered as an icon.
+
+  # storke widths
+  - slot: 0x00000100
+    stroke-width: 1
+    stroke: "#000"
+  - slot: 0x00000101
+    stroke-width: 2
+    stroke: "#000"
+  - slot: 0x00000102
+    stroke-width: 3
+    stroke: "#000"
+  - slot: 0x00000200
+    stroke-width: 4
+  - slot: 0x00000201
+    stroke-width: 5
+  - slot: 0x00000202
+    stroke-width: 6
+  - slot: 0x00000203
+    stroke-width: 7
+  - slot: 0x00000204
+    stroke-width: 8
+
+  # fill colors
+  - slot: 0x00010100
+    fill: "#000"
+  - slot: 0x00010101
+    fill: "#7f7f7f"
+  - slot: 0x00010102
+    fill: "#fff"
+  - slot: 0x00010200
+    fill: "#333"
+  - slot: 0x00010201
+    fill: "#555"
+  - slot: 0x00010202
+    fill: none
+  - slot: 0x00010203
+    fill: "#999"
+  - slot: 0x00010204
+    fill: "#c7c7c7"
+
+  # tab20 palette - dark part (without gray)
+  - slot: 0x02010000
+    fill: "#1f77b4"
+  - slot: 0x02010100
+    fill: "#ff7f0e"
+  - slot: 0x02010101
+    fill: "#2ca02c"
+  - slot: 0x02010102
+    fill: "#d62728"
+  - slot: 0x02010200
+    fill: "#9467bd"
+  - slot: 0x02010201
+    fill: "#8c564b"
+  - slot: 0x02010202
+    fill: "#e377c2"
+  - slot: 0x02010203
+    fill: "#bcbd22"
+  - slot: 0x02010204
+    fill: "#17becf"
+
+  # tab20 palette - light part (without gray)
+  - slot: 0x02000000
+    fill: "#aec7e8"
+  - slot: 0x02000100
+    fill: "#ffbb78"
+  - slot: 0x02000101
+    fill: "#98df8a"
+  - slot: 0x02000102
+    fill: "#ff9896"
+  - slot: 0x02000200
+    fill: "#c5b0d5"
+  - slot: 0x02000201
+    fill: "#c49c94"
+  - slot: 0x02000202
+    fill: "#f7b6d2"
+  - slot: 0x02000203
+    fill: "#dbdb8d"
+  - slot: 0x02000204
+    fill: "#9edae5"
+
+  # pastel 1 palette
+  - slot: 0x02020000
+    fill: "#fbb4ae"
+  - slot: 0x02020100
+    fill: "#b3cde3"
+  - slot: 0x02020101
+    fill: "#ccebc5"
+  - slot: 0x02020102
+    fill: "#decbe4"
+  - slot: 0x02020200
+    fill: "#fed9a6"
+  - slot: 0x02020201
+    fill: "#ffffcc"
+  - slot: 0x02020202
+    fill: "#e5d8bd"
+  - slot: 0x02020203
+    fill: "#fddaec"
+  - slot: 0x02020204
+    fill: "#f2f2f2"
+
+  # set1 palette
+  - slot: 0x02030000
+    fill: "#e41a1c"
+  - slot: 0x02030100
+    fill: "#377eb8"
+  - slot: 0x02030101
+    fill: " #4daf4a"
+  - slot: 0x02030102
+    fill: "#984ea3"
+  - slot: 0x02030200
+    fill: "#ff7f00"
+  - slot: 0x02030201
+    fill: "#ffff33"
+  - slot: 0x02030202
+    fill: "#a65628"
+  - slot: 0x02030203
+    fill: "#f781bf"
+  - slot: 0x02030204
+    fill: "#999999"
+
+  # hatches
+  - slot: 0x02040100
+    fill: url(#hatch-5x5-45)
+  - slot: 0x02040101
+    fill: url(#grid-5x5-45)
+  - slot: 0x02040102
+    fill: url(#hatch-5x5-135)
+  - slot: 0x02040201
+    fill: url(#hatch-3x3-45)
+  - slot: 0x02040202
+    fill: url(#grid-3x3-45)
+  - slot: 0x02040203
+    fill: url(#hatch-3x3-135)
+
+  # fonts
+  - slot: 0x00020100
+    font-family: sans
+  - slot: 0x00020101
+    font-family: sans-serif
+  - slot: 0x00020102
+    font-family: monospace
+  - slot: 0x00020200
+    font-style: regular
+  - slot: 0x00020201
+    font-style: italic
+  - slot: 0x00020202
+    font-size: 12
+  - slot: 0x00020203
+    font-size: 18
+  - slot: 0x00020204
+    font-size: 24
+
+  # opacities
+  - slot: 0x00030100
+    fill-opacity: 0.0
+  - slot: 0x00030101
+    fill-opacity: 0.5
+  - slot: 0x00030102
+    fill-opacity: 1.0
+  - slot: 0x00030200
+    fill-opacity: 0.1
+  - slot: 0x00030201
+    fill-opacity: 0.3
+  - slot: 0x00030202
+    fill-opacity: none
+  - slot: 0x00030203
+    fill-opacity: 0.7
+  - slot: 0x00030204
+    fill-opacity: 0.9
+
+
+  # stroke-dasharray
+  - slot: 0x00040100
+    stroke-dasharray: 2 2
+  - slot: 0x00040101
+    stroke-dasharray: 4 2
+  - slot: 0x00040102
+    stroke-dasharray: 4 4
+  - slot: 0x00040200
+    stroke-dasharray: 8 2
+  - slot: 0x00040201
+    stroke-dasharray: 8 4
+  - slot: 0x00040202
+    stroke-dasharray: none
+  - slot: 0x00040203
+    stroke-dasharray: 4 2 2 2
+  - slot: 0x00040204
+    stroke-dasharray: 4 4 2 4
+
+  # markers
+  - slot: 0x00050100
+    marker-start: none
+    marker-end: url(#arrow-simple-forward)
+  - slot: 0x00050101
+    marker-start: url(#arrow-simple-reverse)
+    marker-end: url(#arrow-simple-forward)
+  - slot: 0x00050102
+    marker-start: url(#arrow-simple-reverse)
+    marker-end: none
+
+  # combined styles
+  - slot: 0x00050200
+    stroke: "#000"
+    stroke-opacity: 1
+    stroke-width: 1
+    fill: none
+  - slot: 0x00050201
+    stroke: "#000"
+    stroke-opacity: 1
+    stroke-width: 1
+    fill: "#7f7f7f"
+    fill-opacity: 0.5
+  - slot: 0x00050203
+    stroke: none
+    fill: "#7f7f7f"
+    fill-opacity: 0.5
+  - slot: 0x00050204
+    stroke: none
+    fill: "#7f7f7f"
+    fill-opacity: 1
+
+  # A button to clear everything, with a custom icon
+  - slot: 0x00050202
+    stroke: none
+    stroke-opacity: none
+    stroke-width: none
+    stroke-dasharray: none
+    stroke-dashoffset: none
+    stroke-linecap: none
+    stroke-linejoin: none
+    stroke-miterlimit: none
+    marker-start: none
+    marker-mid: none
+    marker-end: none
+    fill: none
+    fill-opacity: none
+    font-family: none
+    font-style: none
+    icon: >
+      <svg width="2e3" height="1732" version="1.1" viewBox="0 0 2e3 1732" xmlns="http://www.w3.org/2000/svg">
+       <g transform="rotate(45 1193.3 559.94)" fill="#fff">
+        <rect x="960" y="60" width="80" height="1160" ry="40" stop-color="#000000"/>
+        <rect transform="rotate(90)" x="600" y="-1580" width="80" height="1160" ry="40" stop-color="#000000"/>
+       </g>
+      </svg>
+
+svg-defs:
+  # Each element in this list specify an svg element in the <defs>...</defs>
+  # block. See below for examples.
+
+  - id: grid-5x5-45
+    type: pattern
+    attrs:
+      width: 5
+      height: 5
+      patternTransform: rotate(45)
+      patternUnits: userSpaceOnUse
+    svg: >
+      <line x1="2.5" y1="0" x2="2.5" y2="5" stroke="#000"/>
+      <line x1="0" y1="2.5" x2="5" y2="2.5" stroke="#000"/>
+  - id: hatch-5x5-45
+    type: pattern
+    attrs:
+      width: 5
+      height: 5
+      patternTransform: rotate(45)
+      patternUnits: userSpaceOnUse
+    svg: >
+      <line x1="0" y1="2.5" x2="5" y2="2.5" stroke="#000"/>
+  - id: hatch-5x5-135
+    type: pattern
+    attrs:
+      width: 5
+      height: 5
+      patternTransform: rotate(45)
+      patternUnits: userSpaceOnUse
+    svg: >
+      <line x1="2.5" y1="0" x2="2.5" y2="5" stroke="#000"/>
+  - id: grid-3x3-45
+    type: pattern
+    attrs:
+      width: 3
+      height: 3
+      patternTransform: rotate(45)
+      patternUnits: userSpaceOnUse
+    svg: >
+      <line x1="1.5" y1="0" x2="1.5" y2="3" stroke="#000"/>
+      <line x1="0" y1="1.5" x2="3" y2="1.5" stroke="#000"/>
+  - id: hatch-3x3-45
+    type: pattern
+    attrs:
+      width: 3
+      height: 3
+      patternTransform: rotate(45)
+      patternUnits: userSpaceOnUse
+    svg: >
+      <line x1="0" y1="1.5" x2="3" y2="1.5" stroke="#000"/>
+  - id: hatch-3x3-135
+    type: pattern
+    attrs:
+      width: 3
+      height: 3
+      patternTransform: rotate(45)
+      patternUnits: userSpaceOnUse
+    svg: >
+      <line x1="1.5" y1="0" x2="1.5" y2="3" stroke="#000"/>
+  - id: arrow-simple-forward
+    type: marker
+    attrs:
+      orient: auto
+      viewBox: "0 0 3 5"
+      refX: 2
+      refY: 2.5
+      markerWidth: 3
+      markerHeight: 5
+      overflow: visible
+    svg: >
+      <path d="M 0.5,0.4 C 1,1.4 1.6,2 2.4,2.5 C 1.6,3 1,3.6 0.5,4.6"
+       style="fill:none;stroke:context-stroke;stroke-width:0.7;
+      stroke-linecap:round;stroke-linejoin:round;
+      stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"/>
+  - id: arrow-simple-reverse
+    type: marker
+    attrs:
+      orient: auto
+      viewBox: "0 0 3 5"
+      refX: 1
+      refY: 2.5
+      markerWidth: 3
+      markerHeight: 5
+      overflow: visible
+    svg: >
+      <path d="M 2.5,0.4 C 2,1.4 1.4,2 0.6,2.5 C 1.4,3 2,3.6 2.5,4.6"
+       style="fill:none;stroke:context-stroke;stroke-width:0.7;
+      stroke-linecap:round;stroke-linejoin:round;
+      stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"/>
+...
