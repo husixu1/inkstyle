@@ -8,11 +8,13 @@
 
 #include <QApplication>
 #include <QClipboard>
-#include <QFile>
+#include <QDebug>
+#include <QDir>
 #include <QHotkey>
 #include <QMenu>
 #include <QMimeData>
 #include <QProcess>
+#include <QStandardPaths>
 #include <QSystemTrayIcon>
 #include <iostream>
 
@@ -25,14 +27,23 @@ int main(int argc, char *argv[]) try {
     }
 
     // Read config
-    QSharedPointer<Configs> configs(
-        new Configs("res/inkstyle.yaml", "res/inkstyle.generated.yaml"));
+    QString configPath =
+        QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+    if (configPath.isEmpty()) {
+        qCritical("Cannot access %s", configPath.toStdString().c_str());
+        return 1;
+    }
+    if (!QDir(configPath).exists(EXE_NAME_STR))
+        QDir(configPath).mkdir(EXE_NAME_STR);
+    configPath += "/" EXE_NAME_STR;
+    QSharedPointer<Configs> configs(new Configs(
+        configPath + "/config.yaml", configPath + "/config.generated.yaml"));
 
     // Don't quit on last window closed
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 
-    // Disable accessibility for all widgets to avoid crash under certain OSs
+    // Disable accessibility for all widgets to avoid crash under certain WMs
     QAccessible::installFactory(nonAccessibleWidgetFactory);
 
     // Set app style
@@ -102,7 +113,7 @@ int main(int argc, char *argv[]) try {
                     qInfo("Content empty. Nothing copied");
                     return;
                 }
-                editor.copyTextElement(data.trimmed());
+                editor.copySvgElement(data.trimmed());
                 Utils::pasteElementToInkscape();
             });
     }
