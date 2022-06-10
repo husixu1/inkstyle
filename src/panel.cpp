@@ -386,11 +386,11 @@ static QByteArray _genStyleButtonSvg(
     if (has(CBK::strokeLineJoin))
         svgContent += _genStrokeJoinSvg(info, jb, jm, je);
 
-    // 5. Draw marker start/end/mid indicator
+    // 6. Draw marker start/end/mid indicator
     if (has(CBK::markerStart) || has(CBK::markerMid) || has(CBK::markerEnd))
         svgContent += _genMarkerSvg(info, mbl, mbr);
 
-    // 6. Draw font-style indicator
+    // 7. Draw font-style indicator
     if (has(CBK::fontFamily) || has(CBK::fontStyle))
         svgContent += _genFontSvg(
             config, info, size, size.height() * (orientation ? 0.5 : 0.85));
@@ -474,14 +474,15 @@ Panel::drawStyleButtonIcon(quint8 tSlot, quint8 rSlot, quint8 subSlot) const {
 
 static QByteArray _genCentralButtonSvg(
     Button *button, const Config &config, const StandardButtonInfo &info) {
-    using C::R30, C::R60, C::R45;
+    using C::R30, C::R60, C::R45, C::RAD;
+    constexpr qreal R15 = RAD(15);
     namespace CGK = C::C::G::K;      // button config Keys
     namespace CBK = C::C::B::K;      // button config Keys
     namespace DIS = C::C::G::V::DIS; // default icon style
 
     // Button *button = styleButtons[slot].get();
     QSizeF size = button->inactiveGeometry.size() * button->hoverScale;
-    QPointF centroid = button->centroid * button->hoverScale;
+    QPointF c = button->centroid * button->hoverScale;
 
     QString svgDefs;
     QString svgContent;
@@ -495,49 +496,69 @@ static QByteArray _genCentralButtonSvg(
     // color/stroke-width/marker indicator's top/bottom-left/right point
     QPointF tr, bl, str, stl, mbl, mbr;
     // color/gradient indicator's radius
-    qreal radius = size.height() / 3. - C::IC::strokeWidth / 2.;
+    qreal R = size.height() / 3. - C::IC::strokeWidth / 2.;
     // stroke-width/marker indicator's radius
-    qreal sradius = size.height() * 11. / 24., mradius = sradius;
+    qreal sR = size.height() * 11. / 24., mR = sR;
     // qreal mradius = size.height() * 3. / 8.;
     if (config.defaultIconStyle == DIS::circle) {
-        tr = centroid + QPointF(radius * qCos(R60), -radius * qSin(R60));
-        bl = centroid + QPointF(-radius * qCos(R60), radius * qSin(R60));
-        str = centroid + QPointF(sradius * qCos(R30), -sradius * qSin(R30));
-        stl = centroid + QPointF(-sradius * qCos(R30), -sradius * qSin(R30));
-        mbl = centroid + QPointF(-mradius * qCos(R30), mradius * qSin(R30));
-        mbr = centroid + QPointF(mradius * qCos(R30), mradius * qSin(R30));
+        tr = c + QPointF(R * qCos(R60), -R * qSin(R60));
+        bl = c + QPointF(-R * qCos(R60), R * qSin(R60));
+        str = c + QPointF(sR * qCos(R30), -sR * qSin(R30));
+        stl = c + QPointF(-sR * qCos(R30), -sR * qSin(R30));
+        mbl = c + QPointF(-mR * qCos(R30), mR * qSin(R30));
+        mbr = c + QPointF(mR * qCos(R30), mR * qSin(R30));
     } else if (config.defaultIconStyle == DIS::square) {
-        tr = centroid + QPointF(radius * qCos(R45), -radius * qSin(R45));
-        bl = centroid + QPointF(-radius * qCos(R45), radius * qSin(R45));
-        str = centroid + QPointF(sradius * qCos(R45), -sradius * qSin(R45));
-        stl = centroid + QPointF(-sradius * qCos(R45), -sradius * qSin(R45));
-        mbl = centroid + QPointF(-mradius * qCos(R30), mradius * qSin(R30));
-        mbr = centroid + QPointF(mradius * qCos(R30), mradius * qSin(R30));
+        tr = c + QPointF(R * qCos(R45), -R * qSin(R45));
+        bl = c + QPointF(-R * qCos(R45), R * qSin(R45));
+        str = c + QPointF(sR * qCos(R45), -sR * qSin(R45));
+        stl = c + QPointF(-sR * qCos(R45), -sR * qSin(R45));
+        mbl = c + QPointF(-mR * qCos(R30), mR * qSin(R30));
+        mbr = c + QPointF(mR * qCos(R30), mR * qSin(R30));
     };
+    // line-cap indicator's anchor points
+    QPointF cb =
+        c + QPointF(-mR * qCos(R30), mR * qCos(R30) / qCos(R15) * qSin(R15));
+    QPointF cm = c + QPointF(-mR, 0);
+    QPointF ce =
+        c + QPointF(-mR * qCos(R30), -mR * qCos(R30) / qCos(R15) * qSin(R15));
+    // line-join indicator's anchor points
+    QPointF jb =
+        c + QPointF(mR * qCos(R30), mR * qCos(R30) / qCos(R15) * qSin(R15));
+    QPointF jm = c + QPointF(mR, 0);
+    QPointF je =
+        c + QPointF(mR * qCos(R30), -mR * qCos(R30) / qCos(R15) * qSin(R15));
 
     // 1.2 Add necessary definitions
     svgDefs += _genSvgDefs(config, info);
 
     // 2. Draw the fill/stroke color/style indicator
     if (has(CBK::fill) || has(CBK::stroke) || has(CBK::strokeDashArray))
-        svgContent += _genColorSvg(config, info, bl, tr, radius);
+        svgContent += _genColorSvg(config, info, bl, tr, R);
 
     // 3. Draw the stroke/fill opacity indicator
     if (has(CBK::strokeOpacity) || has(CBK::fillOpacity)) {
-        auto [defs, content] = _genOpacitySvg(config, info, bl, tr, radius);
+        auto [defs, content] = _genOpacitySvg(config, info, bl, tr, R);
         svgDefs += defs;
         svgContent += content;
     }
 
     // 4. Draw stroke-width indicator
     if (has(CBK::strokeWidth))
-        svgContent += _genStrokeWidthSvg(config, info, stl, str, sradius);
+        svgContent += _genStrokeWidthSvg(config, info, stl, str, sR);
 
-    // 5. Draw marker start/end/mid indicator
+    // 5.1: draw stroke-linecap indicator
+    if (has(CBK::strokeLineCap))
+        svgContent += _genStrokeCapSvg(info, cb, cm, ce);
+
+    // 5.2: draw stroke-linejoin indicator
+    if (has(CBK::strokeLineJoin))
+        svgContent += _genStrokeJoinSvg(info, jb, jm, je);
+
+    // 6. Draw marker start/end/mid indicator
     if (has(CBK::markerStart) || has(CBK::markerMid) || has(CBK::markerEnd))
         svgContent += _genMarkerSvg(info, mbl, mbr);
 
-    // 6. Draw font-style indicatoR
+    // 7. Draw font-style indicator
     if (has(CBK::fontFamily) || has(CBK::fontStyle))
         svgContent += _genFontSvg(config, info, size, size.height() * 0.675);
 
