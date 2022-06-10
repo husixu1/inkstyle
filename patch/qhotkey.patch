@@ -1,0 +1,38 @@
+diff --git a/QHotkey/qhotkey.cpp b/QHotkey/qhotkey.cpp
+index 3b76d9c..9f371cc 100644
+--- a/QHotkey/qhotkey.cpp
++++ b/QHotkey/qhotkey.cpp
+@@ -274,12 +274,14 @@ void QHotkeyPrivate::activateShortcut(QHotkey::NativeShortcut shortcut)
+ }
+ 
+ void QHotkeyPrivate::releaseShortcut(QHotkey::NativeShortcut shortcut)
+ {
+ 	QMetaMethod signal = QMetaMethod::fromSignal(&QHotkey::released);
+-	for(QHotkey *hkey : shortcuts.values(shortcut))
+-		signal.invoke(hkey, Qt::QueuedConnection);
++	for(const QHotkey::NativeShortcut &sc: shortcuts.keys())
++		if (sc.key == shortcut.key)
++			for(QHotkey *hkey : shortcuts.values(sc))
++				signal.invoke(hkey, Qt::QueuedConnection);
+ }
+ 
+ void QHotkeyPrivate::addMappingInvoked(Qt::Key keycode, Qt::KeyboardModifiers modifiers, QHotkey::NativeShortcut nativeShortcut)
+ {
+ 	mapping.insert({keycode, modifiers}, nativeShortcut);
+diff --git a/QHotkey/qhotkey_x11.cpp b/QHotkey/qhotkey_x11.cpp
+index ce408e6..102fca3 100644
+--- a/QHotkey/qhotkey_x11.cpp
++++ b/QHotkey/qhotkey_x11.cpp
+@@ -82,11 +82,11 @@ bool QHotkeyPrivateX11::nativeEventFilter(const QByteArray &eventType, void *mes
+ 		}
+ 		this->activateShortcut({keyEvent.detail, keyEvent.state & QHotkeyPrivateX11::validModsMask});
+ 	} else if (genericEvent->response_type == XCB_KEY_RELEASE) {
+ 		xcb_key_release_event_t keyEvent = *static_cast<xcb_key_release_event_t *>(message);
+ 		this->prevEvent = keyEvent;
+-		QTimer::singleShot(50, [this, keyEvent] {
++		QTimer::singleShot(0, [this, keyEvent] {
+ 			if(this->prevEvent.time == keyEvent.time && this->prevEvent.response_type == keyEvent.response_type && this->prevEvent.detail == keyEvent.detail){
+ 				this->releaseShortcut({keyEvent.detail, keyEvent.state & QHotkeyPrivateX11::validModsMask});
+ 			}
+ 		});
+ 		this->prevHandledEvent = keyEvent;

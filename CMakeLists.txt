@@ -16,8 +16,11 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
+find_package(QT NAMES Qt5 REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Svg REQUIRED)
+if(UNIX)
+    find_package(Qt${QT_VERSION_MAJOR} COMPONENTS X11Extras REQUIRED)
+endif()
 
 set(PROJECT_SOURCES
     # Sources
@@ -78,17 +81,38 @@ configure_file(src/global.hpp.in src/global.hpp)
 # DEPENDENCIES ################################################################
 include(ExternalProject)
 
-add_subdirectory(3rdparty/QHotkey)
-add_subdirectory(3rdparty/yaml-cpp)
-add_subdirectory(3rdparty/pugixml)
+add_subdirectory(3rdparty/yaml-cpp EXCLUDE_FROM_ALL)
+add_subdirectory(3rdparty/pugixml EXCLUDE_FROM_ALL)
 
-# requires cargo to build resvg
+# Use a patched version of QHotkey to workaround some Linux bugs
+set(qhotkey_PATCH_COMMAND "")
+if(UNIX)
+    set(qhotkey_PATCH_COMMAND patch -p1 < ${CMAKE_SOURCE_DIR}/patch/qhotkey.patch)
+endif()
+ExternalProject_Add(
+    qhotkey PREFIX ${CMAKE_BINARY_DIR}/3rdparty
+    URL ${CMAKE_SOURCE_DIR}/3rdparty/QHotkey
+    PATCH_COMMAND ${qhotkey_PATCH_COMMAND}
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
+    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+)
+ExternalProject_Get_property(qhotkey INSTALL_DIR)
+set(qhotkey_INCLUDE_DIRS ${INSTALL_DIR}/include)
+set(qhotkey_LIBRARY_DIRS ${INSTALL_DIR}/lib)
+if(UNIX)
+    set(qhotkey_LIBRARIES -lqhotkey)
+elseif(WIN32)
+    set(qhotkey_LIBRARIES qhotkey.lib)
+endif()
+
+# Requires cargo to build resvg
 find_program(CARGO cargo REQUIRED)
 ExternalProject_Add(
     resvg PREFIX ${CMAKE_BINARY_DIR}/3rdparty
     URL ${CMAKE_SOURCE_DIR}/3rdparty/resvg
-    CONFIGURE_COMMAND cargo fetch --locked
-    BUILD_COMMAND cargo build --workspace --frozen --release --all-features
+    CONFIGURE_COMMAND ${CARGO} fetch --locked
+    BUILD_COMMAND ${CARGO} build --workspace --frozen --release --all-features
     BUILD_IN_SOURCE ON
     INSTALL_COMMAND "")
 ExternalProject_Get_property(resvg SOURCE_DIR)
@@ -100,27 +124,37 @@ if(UNIX)
 elseif(WIN32)
     set(resvg_LIBRARIES resvg.dll wsock32 ws2_32 bcrypt userenv)
 endif()
-
 add_dependencies(${EXE_NAME} resvg qhotkey yaml-cpp)
 
 if(UNIX AND NOT APPLE)
     # Require x11 library to send keys to inkscape
-    find_package(PkgConfig)
-    pkg_check_modules(x11 REQUIRED)
+    find_package(X11 REQUIRED)
+    # qhotkey depends on Qt's X11Extras
+    list(APPEND qhotkey_LIBRARIES Qt5::X11Extras)
 endif()
 
 target_include_directories(
     ${EXE_NAME} PRIVATE
     ${CMAKE_BINARY_DIR}/src
     ${x11_INCLUDE_DIRS}
+    ${qhotkey_INCLUDE_DIRS}
     ${resvg_INCLUDE_DIRS})
 
 target_link_directories(
     ${EXE_NAME} PRIVATE
+    ${qhotkey_LIBRARY_DIRS}
     ${resvg_LIBRARY_DIRS})
 
 target_link_libraries(
     ${EXE_NAME} PRIVATE
-    Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Svg
-    qhotkey yaml-cpp pugixml ${resvg_LIBRARIES}
-    ${x11_LDFLAGS})
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Svg
+    yaml-cpp
+    pugixml
+    ${resvg_LIBRARIES}
+    ${qhotkey_LIBRARIES}
+    ${X11_LIBRARIES})
+
+# INSTALLATION ################################################################
+set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+install(TARGETS ${EXE_NAME} DESTINATION bin)
