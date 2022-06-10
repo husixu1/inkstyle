@@ -74,6 +74,11 @@ private:
     /// @brief Initialize #customButtons and #standardButtons
     /// @param config The root yaml node
     void parseButtonsConfig(const YAML::Node &config);
+
+    static inline quint8 pSlot(const Slot &slot);
+    static inline quint8 tSlot(const Slot &slot);
+    static inline quint8 rSlot(const Slot &slot);
+    static inline quint8 subSlot(const Slot &slot);
 };
 
 #endif // CONFIGMANAGER_HPP

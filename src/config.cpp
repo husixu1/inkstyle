@@ -210,9 +210,8 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
 
         // Check for validity and availability of slots
         Slot slot = button[BK::slot].as<Slot>();
-        if (((slot >> 24) & 0xff) > panelMaxLevels * 6
-            || ((slot >> 16) & 0xff) > 5 || ((slot >> 8) & 0xff) > 2
-            || (slot & 0xff) > ((slot >> 8) & 0xff) * 2) {
+        if (pSlot(slot) > panelMaxLevels * 6 || tSlot(slot) > 5
+            || rSlot(slot) > 2 || subSlot(slot) > rSlot(slot) * 2) {
             qWarning(
                 "Button %s[%ld]:%s = %#x invalid, skipping...", CC::buttons,
                 numButtons, BK::slot, slot);
@@ -276,6 +275,22 @@ void Config::parseButtonsConfig(const YAML::Node &config) {
             standardButtons.insert(slot, {defIds, styles, customIcon});
         }
     }
+}
+
+quint8 Config::pSlot(const Slot &slot) {
+    return (slot >> 24) & 0xff;
+}
+
+quint8 Config::tSlot(const Slot &slot) {
+    return (slot >> 16) & 0xff;
+}
+
+quint8 Config::rSlot(const Slot &slot) {
+    return (slot >> 8) & 0xff;
+}
+
+quint8 Config::subSlot(const Slot &slot) {
+    return slot & 0xff;
 }
 
 Config::Config(const QString &file, QObject *parent) : QObject(parent) {

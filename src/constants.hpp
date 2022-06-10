@@ -29,8 +29,10 @@ cccp styleMimeType = "image/x-inkscape-svg";
 namespace IconDrawing {
     /// @brief Checkerboard grid width
     constexpr qreal checkerboardWidth = 5;
-    /// @brief Outer stroke width of the icon
-    constexpr qreal strokeWidth = 5;
+    /// @brief Stroke width of the circle when the 'stroke' attribute exists
+    constexpr qreal colorStrokeWidth = 5;
+    /// @brief Stroke width of the circle when the 'stroke' attribute is missing
+    constexpr qreal otherStrokeWidth = 2;
 } // namespace IconDrawing
 namespace IC = IconDrawing;
 

@@ -78,7 +78,12 @@ static QString _genColorSvg(
     if (!has(CBK::fill))
         styleString.append("fill:none");
     if (has(CBK::stroke))
-        styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+        styleString.append(
+            QString("stroke-width:%1").arg(IC::colorStrokeWidth));
+    else if (has(CBK::strokeDashArray) || has(CBK::strokeDashOffset))
+        styleString.append(
+            QString("stroke:#fff;stroke-width:%1").arg(IC::otherStrokeWidth));
+
     for (const char *key :
          {CBK::fill, CBK::stroke, CBK::strokeDashArray, CBK::strokeDashOffset})
         if (has(key))
@@ -140,8 +145,10 @@ static QPair<QString, QString> _genOpacitySvg(
     if (has(CBK::strokeOpacity)) {
         if (!has(CBK::stroke))
             styleString.append("stroke:#fff");
-        styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
-        bgStyleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+        styleString.append(
+            QString("stroke-width:%1").arg(IC::colorStrokeWidth));
+        bgStyleString.append(
+            QString("stroke-width:%1").arg(IC::colorStrokeWidth));
         bgStyleString.append("stroke:url(#__checkerboard)");
     }
 
@@ -207,7 +214,7 @@ static QString _genStrokeCapSvg(
     QStringList styleString;
     styleString.append("fill-opacity:0");
     styleString.append("stroke:#fff");
-    styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+    styleString.append(QString("stroke-width:%1").arg(IC::colorStrokeWidth));
     styleString.append(
         CBK::strokeLineCap + (":" + info.styles()[CBK::strokeLineCap]));
     return element.replace("{S}", styleString.join(';'));
@@ -231,7 +238,7 @@ static QString _genStrokeJoinSvg(
     QStringList styleString;
     styleString.append("fill-opacity:0");
     styleString.append("stroke:#fff");
-    styleString.append(QString("stroke-width:%1").arg(IC::strokeWidth));
+    styleString.append(QString("stroke-width:%1").arg(IC::colorStrokeWidth));
     if (has(CBK::strokeLineJoin))
         styleString.append(
             CBK::strokeLineJoin + (":" + info.styles()[CBK::strokeLineJoin]));
@@ -349,7 +356,7 @@ static QByteArray _genStyleButtonSvg(
     // color indicator's anchor points
     QPointF tr, bl;
     // color/gradient indicator's radius
-    qreal R = size.height() / 3. - C::IC::strokeWidth / 2.;
+    qreal R = size.height() / 3. - C::IC::colorStrokeWidth / 2.;
     // stroke-width
     qreal sR = size.height() * 11. / 24.;
     // marker indicator's radius
@@ -530,7 +537,7 @@ static QByteArray _genCentralButtonSvg(
     // color/stroke-width/marker indicator's top/bottom-left/right point
     QPointF tr, bl, str, stl, mbl, mbr;
     // color/gradient indicator's radius
-    qreal R = size.height() / 3. - C::IC::strokeWidth / 2.;
+    qreal R = size.height() / 3. - C::IC::colorStrokeWidth / 2.;
     // stroke-width/marker indicator's radius
     qreal sR = size.height() * 11. / 24., mR = sR;
     // qreal mradius = size.height() * 3. / 8.;
